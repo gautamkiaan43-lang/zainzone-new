@@ -3,958 +3,1350 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  // url = env("DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
-model migrations {
-  id     Int      @id @default(autoincrement())
-  name   String   @unique(map: "name") @db.VarChar(255)
-  ran_at DateTime @default(now()) @db.Timestamp(0)
+// ------------------------------------------------------
+// FOUNDATION TABLES (PHASE 2)
+// ------------------------------------------------------
 
-  @@map("_migrations")
+model User {
+  id               Int       @id @default(autoincrement())
+  uuid             String    @unique @default(uuid())
+  tenantId         Int?
+  name             String
+  email            String    @unique
+  phone            String?
+  password         String
+  roleId           Int
+  avatar           String?
+  status           String    @default("active")
+  vacationBalance  Int       @default(0)
+  birthday         DateTime?
+  nibNumber        String?
+  employmentStatus String?
+  hasPassport      Boolean   @default(false)
+  hasLicense       Boolean   @default(false)
+  hasNIB           Boolean   @default(false)
+  hasResume        Boolean   @default(false)
+  bankingInfo      Json?
+  lastLogin        DateTime?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  plan                       String?   @default("Free")
+  is_upgraded                Boolean   @default(false)
+  concierge_member           Boolean   @default(false)
+  concierge_membership_since String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  role          Role           @relation(fields: [roleId], references: [id])
+  userRoles     UserRole[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  employee      Employee?
+  leaveRequests LeaveRequest[]
+  payrolls      Payroll[]
+  Event         Event[]
+
+  @@index([email])
+  @@index([tenantId])
+  @@index([roleId])
+  @@index([status])
+  @@map("users")
 }
 
-model audit_logs {
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+  roleMenus       RoleMenu[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  name        String
+  module      String
+  action      String
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
   id           Int @id @default(autoincrement())
-  company_id   Int?
-  title        String?            @db.VarChar(255)
-  type         String?            @db.VarChar(100)
-  description  String?            @db.Text
-  status       audit_logs_status? @default(pending)
-  performed_by Int?
-  created_at   DateTime           @default(now()) @db.Timestamp(0)
-  updated_at   DateTime           @default(now()) @db.Timestamp(0)
+  roleId       Int
+  permissionId Int
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@map("role_permissions")
 }
 
-model companies {
-  id             Int @id @default(autoincrement())
-  name           String                   @db.VarChar(255)
-  email          String?                  @db.VarChar(255)
-  phone          String?                  @db.VarChar(50)
-  location       String?                  @db.VarChar(255)
-  logo_url       String?                  @db.VarChar(500)
-  tagline        String?                  @db.VarChar(500)
-  plan           String?                  @default("Essentials") @db.VarChar(100)
-  billing_cycle  companies_billing_cycle? @default(Monthly)
-  payment_method String?                  @db.VarChar(100)
-  contact_person String?                  @db.VarChar(255)
-  contact        String?                  @db.VarChar(255)
-  address        String?                  @db.Text
-  business_name  String?                  @db.VarChar(255)
-  client_type    companies_client_type?   @default(SaaS)
-  tenant_type    companies_tenant_type?   @default(saas)
-  saas_fee_paid  Boolean?                 @default(false)
-  source         String?                  @db.VarChar(100)
-  created_by     Int?
-  status         companies_status?        @default(active)
-  created_at     DateTime                 @default(now()) @db.Timestamp(0)
-  updated_at     DateTime                 @default(now()) @db.Timestamp(0)
+model Menu {
+  id     Int     @id @default(autoincrement())
+  name   String
+  path   String
+  icon   String
+  module String?
+
+  roleMenus RoleMenu[]
+
+  @@map("menus")
 }
 
-model customers {
-  id          Int @id @default(autoincrement())
-  company_id  Int
-  created_by  Int?
-  name        String?                @db.VarChar(255)
-  email       String?                @db.VarChar(255)
-  phone       String?                @db.VarChar(50)
-  contact     String?                @db.VarChar(255)
-  address     String?                @db.Text
-  client_type customers_client_type? @default(Direct)
-  status      customers_status?      @default(active)
-  created_at  DateTime               @default(now()) @db.Timestamp(0)
-  updated_at  DateTime               @default(now()) @db.Timestamp(0)
+model RoleMenu {
+  id         Int     @id @default(autoincrement())
+  roleId     Int
+  menuId     Int
+  can_view   Boolean @default(false)
+  can_add    Boolean @default(false)
+  can_edit   Boolean @default(false)
+  can_delete Boolean @default(false)
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, menuId])
+  @@map("role_menus")
 }
 
-model deliveries {
-  id                    Int @id @default(autoincrement())
-  company_id            Int?
-  order_id              Int?
-  client_id             Int?
-  created_by            Int?
-  mission_type          deliveries_mission_type?  @default(Delivery)
-  route                 String?                   @db.VarChar(255)
-  driver_name           String?                   @db.VarChar(255)
-  plate_number          String?                   @db.VarChar(50)
-  vehicle_id            Int?
-  assigned_driver       Int?
-  package_details       String?                   @db.Text
-  pickup_location       String?                   @db.VarChar(255)
-  drop_location         String?                   @db.VarChar(255)
-  delivery_instructions String?                   @db.Text
-  delivery_fee          Decimal?                  @default(0.00) @db.Decimal(10, 2)
-  payout_status         deliveries_payout_status? @default(none)
-  payout_ready_at       DateTime?                 @db.Timestamp(0)
-  passenger_info        String?                   @db.Text
-  delivery_date         DateTime?                 @db.Date
-  pickup_time           DateTime?                 @db.Time(0)
-  signature             String?                   @db.Text
-  status                deliveries_status?        @default(pending)
-  mode                  String?                   @default("Road") @db.VarChar(50)
-  created_at            DateTime                  @default(now()) @db.Timestamp(0)
-  updated_at            DateTime                  @default(now()) @db.Timestamp(0)
+model UserRole {
+  id     Int @id @default(autoincrement())
+  userId Int
+  roleId Int
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@map("user_roles")
 }
 
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String   @db.Text
+  type      String
+  userId    Int
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-model delivery_pricing {
-  id          Int @id @default(autoincrement())
-  company_id  Int?
-  tier_name   String?  @db.VarChar(255)
-  price       Decimal? @db.Decimal(12, 2)
-  description String?  @db.Text
-  created_at  DateTime @default(now()) @db.Timestamp(0)
-  updated_at  DateTime @default(now()) @db.Timestamp(0)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
 }
 
-model events {
-  id               Int @id @default(autoincrement())
-  company_id       Int?
-  name             String         @db.VarChar(255)
-  event_date       DateTime?      @db.Date
-  location         String?        @db.VarChar(255)
-  client_id        Int?
-  manager_id       Int?
-  status           events_status? @default(planned)
-  created_at       DateTime       @default(now()) @db.Timestamp(0)
-  updated_at       DateTime       @default(now()) @db.Timestamp(0)
-  image_url        String?        @db.VarChar(500)
-  special_requests String?        @db.Text
-  planner_name     String?        @db.VarChar(255)
-  guest_count      Int?           @default(0)
-  mood_board_url   String?        @db.VarChar(500)
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  module      String
+  action      String
+  description String?
+  oldValue    Json?
+  newValue    Json?
+  performedBy Int
+  timestamp   DateTime @default(now())
+
+  user User @relation(fields: [performedBy], references: [id])
+
+  @@map("audit_logs")
 }
 
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  group     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-model guest_requests {
-  id              Int @id @default(autoincrement())
-  company_id      Int?
-  client_id       Int?
-  guest           String?                  @db.VarChar(255)
-  requested_by    String?                  @db.VarChar(255)
-  request_details String?                  @db.Text
-  delivery_time   DateTime?                @db.Timestamp(0)
-  priority        guest_requests_priority? @default(medium)
-  status          guest_requests_status?   @default(pending)
-  created_at      DateTime                 @default(now()) @db.Timestamp(0)
-  updated_at      DateTime                 @default(now()) @db.Timestamp(0)
+  @@map("settings")
 }
 
-model inventory {
-  id             Int @id @default(autoincrement())
-  company_id     Int?
-  name           String                    @db.VarChar(255)
-  sku            String?                   @db.VarChar(100)
-  category       String?                   @db.VarChar(100)
-  quantity       Int?                      @default(0)
-  price          Decimal?                  @default(0.00) @db.Decimal(12, 2)
-  threshold      Int?                      @default(10)
-  warehouse_id   Int?
-  vendor_id      Int?
-  client_id      Int?
-  inventory_type inventory_inventory_type? @default(Marketplace)
-  status         inventory_status?         @default(in_stock)
-  image_url      String?                   @db.VarChar(500)
-  created_at     DateTime                  @default(now()) @db.Timestamp(0)
-  updated_at     DateTime                  @default(now()) @db.Timestamp(0)
-  size           String?                   @db.VarChar(255)
-  color          String?                   @db.VarChar(255)
-  material       String?                   @db.VarChar(255)
-  specifications String?                   @db.Text
-  description    String?                   @db.Text
-}
+// ------------------------------------------------------
+// SUPER ADMIN TABLES (PHASE 3)
+// ------------------------------------------------------
 
-model inventory_movements {
-  id             Int @id @default(autoincrement())
-  inventory_id   Int
-  type           inventory_movements_type
-  quantity       Int
-  reference_type String?                  @db.VarChar(100)
-  reference_id   Int?
-  reason         String?                  @db.Text
-  performed_by   Int?
-  created_at     DateTime                 @default(now()) @db.Timestamp(0)
-}
-
-model invoices {
-  id          Int @id @default(autoincrement())
-  company_id  Int?
-  order_id    Int?
-  client_id   Int?
-  amount      Decimal          @db.Decimal(12, 2)
-  paid_amount Decimal?         @default(0.00) @db.Decimal(12, 2)
-  due_date    DateTime?        @db.Date
-  status      invoices_status? @default(unpaid)
-  created_at  DateTime         @default(now()) @db.Timestamp(0)
-  updated_at  DateTime         @default(now()) @db.Timestamp(0)
-}
-
-model leave_requests {
-  id          Int @id @default(autoincrement())
-  company_id  Int?
-  user_id     Int
-  leave_type  leave_requests_leave_type
-  start_date  DateTime                  @db.Date
-  end_date    DateTime                  @db.Date
-  reason      String?                   @db.Text
-  status      leave_requests_status?    @default(pending)
-  reviewed_by Int?
-  created_at  DateTime                  @default(now()) @db.Timestamp(0)
-  updated_at  DateTime                  @default(now()) @db.Timestamp(0)
-}
-
-model logistics_tracking {
-  id              Int @id @default(autoincrement())
-  company_id      Int?
-  tracker_id      String?   @db.VarChar(100)
-  asset           String?   @db.VarChar(255)
-  location        String?   @db.VarChar(255)
-  signal_strength String?   @default("Strong") @db.VarChar(50)
-  eta             String?   @db.VarChar(100)
-  status          String?   @default("Active") @db.VarChar(100)
-  delivery_id     Int?
-  created_at      DateTime? @default(now()) @db.Timestamp(0)
-  updated_at      DateTime? @default(now()) @db.Timestamp(0)
-}
-
-model logistics_urgent_tasks {
-  id         Int @id @default(autoincrement())
-  company_id Int?
-  task       String    @db.VarChar(255)
-  time_label String?   @default("Immediate") @db.VarChar(100)
-  priority   String?   @default("Critical") @db.VarChar(50)
-  location   String?   @db.VarChar(255)
-  assignee   String?   @default("Pending") @db.VarChar(255)
-  created_at DateTime? @default(now()) @db.Timestamp(0)
-  updated_at DateTime? @default(now()) @db.Timestamp(0)
-}
-
-model luxury_items {
-  id              Int @id @default(autoincrement())
-  company_id      Int?
-  item_name       String               @db.VarChar(255)
-  owner_name      String?              @db.VarChar(255)
-  vault_location  String?              @db.VarChar(255)
-  estimated_value Decimal?             @db.Decimal(15, 2)
-  status          luxury_items_status? @default(Stored)
-  notes           String?              @db.Text
-  created_at      DateTime             @default(now()) @db.Timestamp(0)
-  updated_at      DateTime             @default(now()) @db.Timestamp(0)
-}
-
-model menu_permissions {
-  id         Int @id @default(autoincrement())
-  company_id Int?
-  role       String   @db.VarChar(100)
-  menu_name  String   @db.VarChar(255)
-  can_view   Boolean? @default(true)
-  can_create Boolean? @default(false)
-  can_edit   Boolean? @default(false)
-  can_delete Boolean? @default(false)
-  created_at DateTime @default(now()) @db.Timestamp(0)
-  updated_at DateTime @default(now()) @db.Timestamp(0)
-}
-
-model missions {
-  id               Int @id @default(autoincrement())
-  company_id       Int?
-  order_id         Int?
-  project_id       Int?
-  mission_type     missions_mission_type? @default(Delivery)
-  destination_type String?                @db.VarChar(100)
-  assigned_driver  Int?
-  vehicle_id       Int?
-  status           missions_status?       @default(pending)
-  event_date       DateTime?              @db.Date
-  notes            String?                @db.Text
-  created_at       DateTime               @default(now()) @db.Timestamp(0)
-  updated_at       DateTime               @default(now()) @db.Timestamp(0)
-}
-
-model notifications {
-  id          Int @id @default(autoincrement())
-  company_id  Int?
-  user_id     Int?
-  role_target String?   @db.VarChar(50)
-  type        String    @default("info") @db.VarChar(50)
-  title       String    @db.VarChar(255)
-  message     String?   @db.Text
-  link        String?   @db.VarChar(255)
-  is_read     Boolean?  @default(false)
-  created_at  DateTime? @default(now()) @db.Timestamp(0)
-}
-
-model order_flow_logs {
-  id           Int       @id @default(autoincrement())
-  order_id     Int
-  stage        String?   @db.VarChar(64)
-  assigned_to  Int?
-  assigned_by  Int?
-  status       String?   @db.VarChar(64)
-  notes        String?   @db.Text
-  started_at   DateTime? @default(now()) @db.Timestamp(0)
-  completed_at DateTime? @db.Timestamp(0)
-}
-
-model order_items {
+model Plan {
   id           Int      @id @default(autoincrement())
-  order_id     Int
-  product_name String   @db.VarChar(255)
-  category     String?  @db.VarChar(100)
-  qty          Int?     @default(1)
-  unit_price   Decimal? @default(0.00) @db.Decimal(12, 2)
-  total_price  Decimal? @default(0.00) @db.Decimal(12, 2)
-  created_at   DateTime @default(now()) @db.Timestamp(0)
-}
-
-model orders {
-  id                    Int @id @default(autoincrement())
-  company_id            Int
-  customer_id           Int?
-  client_name           String?               @db.VarChar(255)
-  vendor_id             Int?
-  created_by            Int?
-  type                  String?               @default("Custom Order") @db.VarChar(100)
-  items                 String?               @db.Text
-  notes                 String?               @db.Text
-  delivery_instructions String?               @db.Text
-  location              String?               @db.VarChar(255)
-  delivery_address      String?               @db.VarChar(500)
-  total_amount          Decimal?              @default(0.00) @db.Decimal(12, 2)
-  status                orders_status?        @default(created)
-  current_stage         orders_current_stage? @default(created)
-  assigned_to           Int?
-  order_date            DateTime?             @db.Date
-  due_date              DateTime?             @db.Date
-  created_at            DateTime              @default(now()) @db.Timestamp(0)
-  updated_at            DateTime              @default(now()) @db.Timestamp(0)
-  pickup_location       String?               @db.VarChar(255)
-}
-
-model password_resets {
-  id         Int @id @default(autoincrement())
-  email      String   @db.VarChar(255)
-  otp        String   @db.VarChar(10)
-  expires_at DateTime @db.Timestamp(0)
-  used       Boolean? @default(false)
-  created_at DateTime @default(now()) @db.Timestamp(0)
-}
-
-model payments {
-  id             Int @id @default(autoincrement())
-  invoice_id     Int
-  amount         Decimal  @db.Decimal(12, 2)
-  payment_method String?  @db.VarChar(100)
-  transaction_id String?  @db.VarChar(255)
-  created_at     DateTime @default(now()) @db.Timestamp(0)
-}
-
-model payroll {
-  id                Int @id @default(autoincrement())
-  company_id        Int?
-  user_id           Int
-  payment_date      DateTime?       @db.Date
-  gross_amount      Decimal?        @db.Decimal(12, 2)
-  deductions        Decimal?        @default(0.00) @db.Decimal(12, 2)
-  net_amount        Decimal?        @db.Decimal(12, 2)
-  status            payroll_status? @default(pending)
-  created_at        DateTime        @default(now()) @db.Timestamp(0)
-  base_salary       Decimal?        @default(0.00) @db.Decimal(12, 2)
-  bonus             Decimal?        @default(0.00) @db.Decimal(12, 2)
-  nib_deduction     Decimal?        @default(0.00) @db.Decimal(12, 2)
-  medical_deduction Decimal?        @default(0.00) @db.Decimal(12, 2)
-  pension_deduction Decimal?        @default(0.00) @db.Decimal(12, 2)
-  savings_deduction Decimal?        @default(0.00) @db.Decimal(12, 2)
-  birthday_club     Decimal?        @default(0.00) @db.Decimal(12, 2)
-  method            String?         @default("Direct Deposit") @db.VarChar(100)
-}
-
-model projects {
-  id            Int              @id @default(autoincrement())
-  company_id    Int?
-  customer_id   Int?
-  client_name   String?          @db.VarChar(255)
-  order_id      Int?
-  name          String           @db.VarChar(255)
-  description   String?          @db.Text
-  manager_id    Int?
-  location      String?          @db.VarChar(255)
-  status        projects_status? @default(planned)
-  start_date    DateTime?        @db.Date
-  end_date      DateTime?        @db.Date
-  delivery_type String?          @default("Road") @db.VarChar(50)
-  created_at    DateTime         @default(now()) @db.Timestamp(0)
-  updated_at    DateTime         @default(now()) @db.Timestamp(0)
-}
-
-model purchase_orders {
-  id            Int @id @default(autoincrement())
-  company_id    Int?
-  vendor_id     Int
-  items         String?                 @db.Text
-  total_amount  Decimal?                @db.Decimal(12, 2)
-  notes         String?                 @db.Text
-  payment_terms String?                 @default("Net 30") @db.VarChar(255)
-  status        purchase_orders_status? @default(Pending)
-  created_at    DateTime                @default(now()) @db.Timestamp(0)
-  updated_at    DateTime                @default(now()) @db.Timestamp(0)
-}
-
-model purchase_requests {
-  id             Int @id @default(autoincrement())
-  company_id     Int?
-  item_name      String?                     @db.VarChar(255)
-  items          String?                     @db.Text
-  category       String?                     @db.VarChar(100)
-  quantity       Int?
-  estimated_cost Decimal?                    @db.Decimal(12, 2)
-  requester      String?                     @db.VarChar(255)
-  requester_id   Int?
-  status         purchase_requests_status?
-  priority       purchase_requests_priority? @default(Normal)
-  notes          String?                     @db.Text
-  department     String?                     @db.VarChar(255)
-  created_at     DateTime                    @default(now()) @db.Timestamp(0)
-  updated_at     DateTime                    @default(now()) @db.Timestamp(0)
-}
-
-model quotes {
-  id                  Int @id @default(autoincrement())
-  company_id          Int?
-  vendor_id           Int
-  purchase_request_id Int?
-  items               String?        @db.Text
-  total_amount        Decimal?       @db.Decimal(12, 2)
-  validity_date       DateTime?      @db.Date
-  status              quotes_status? @default(Pending)
-  notes               String?        @db.Text
-  created_at          DateTime       @default(now()) @db.Timestamp(0)
-  updated_at          DateTime       @default(now()) @db.Timestamp(0)
-}
-
-model routes {
-  id             Int @id @default(autoincrement())
-  company_id     Int?
-  name           String         @db.VarChar(255)
-  start_location String?        @db.VarChar(255)
-  end_location   String?        @db.VarChar(255)
-  distance_km    Decimal?       @db.Decimal(10, 2)
-  estimated_time String?        @db.VarChar(100)
-  type           routes_type?   @default(Land)
-  status         routes_status? @default(Active)
-  created_at     DateTime       @default(now()) @db.Timestamp(0)
-  updated_at     DateTime       @default(now()) @db.Timestamp(0)
-}
-
-model saas_plans {
-  id            Int @id @default(autoincrement())
-  name          String                    @db.VarChar(255)
-  price         Decimal                   @db.Decimal(12, 2)
-  billing_cycle saas_plans_billing_cycle? @default(Monthly)
-  features      String?                   @db.Text
-  max_users     Int?                      @default(10)
-  max_orders    Int?                      @default(100)
-  status        saas_plans_status?        @default(active)
-  created_at    DateTime                  @default(now()) @db.Timestamp(0)
-  updated_at    DateTime                  @default(now()) @db.Timestamp(0)
-}
-
-model saas_requests {
-  id             Int @id @default(autoincrement())
-  client_name    String                @db.VarChar(255)
-  email          String                @db.VarChar(255)
-  phone          String?               @db.VarChar(50)
-  company_name   String?               @db.VarChar(255)
-  plan           String?               @db.VarChar(100)
-  contact_person String?               @db.VarChar(255)
-  country        String?               @db.VarChar(100)
-  status         saas_requests_status? @default(Pending)
-  created_at     DateTime              @default(now()) @db.Timestamp(0)
-  updated_at     DateTime              @default(now()) @db.Timestamp(0)
-}
-
-model shifts {
-  id             Int @id @default(autoincrement())
-  company_id     Int?
-  user_id        Int
-  clock_in       DateTime  @db.Timestamp(0)
-  clock_out      DateTime? @db.Timestamp(0)
-  location       String?   @db.VarChar(255)
-  duration_hours Decimal?  @db.Decimal(6, 2)
-  created_at     DateTime  @default(now()) @db.Timestamp(0)
-}
-
-model staff_assignments {
-  id                Int @id @default(autoincrement())
-  company_id        Int?
-  assignee_id       Int
-  task              String?                     @db.VarChar(500)
-  location          String?                     @db.VarChar(255)
-  status            staff_assignments_status?   @default(Pending)
-  priority          staff_assignments_priority? @default(Normal)
-  mission_type      String?                     @db.VarChar(100)
-  passenger_name    String?                     @db.VarChar(255)
-  pickup_time       DateTime?                   @db.Timestamp(0)
-  drop_location     String?                     @db.VarChar(255)
-  pickup_location   String?                     @db.VarChar(255)
-  delivery_location String?                     @db.VarChar(255)
-  luggage           String?                     @db.VarChar(255)
-  goods_details     String?                     @db.Text
-  weight            String?                     @db.VarChar(50)
-  created_at        DateTime                    @default(now()) @db.Timestamp(0)
-  updated_at        DateTime                    @default(now()) @db.Timestamp(0)
-}
-
-model support_tickets {
-  id             Int @id @default(autoincrement())
-  company_id     Int?
-  subject        String                          @db.VarChar(255)
-  category       String?                         @default("General") @db.VarChar(100)
-  description    String?                         @db.Text
-  messages       String?                         @db.Text
-  priority       support_tickets_priority?       @default(medium)
-  status         support_tickets_status?         @default(open)
-  dispute_status support_tickets_dispute_status? @default(none)
-  refund_amount  Decimal?                        @default(0.00) @db.Decimal(10, 2)
-  submitted_by   Int?
-  assigned_to    Int?
-  created_at     DateTime                        @default(now()) @db.Timestamp(0)
-  updated_at     DateTime                        @default(now()) @db.Timestamp(0)
-}
-
-model system_settings {
-  id            Int @id @default(autoincrement())
-  company_id    Int?
-  setting_key   String   @db.VarChar(255)
-  setting_value String?  @db.Text
-  updated_at    DateTime @default(now()) @db.Timestamp(0)
-}
-
-model users {
-  id                         Int @id @default(autoincrement())
-  company_id                 Int?
-  created_by                 Int?
-  name                       String                   @db.VarChar(255)
-  email                      String                   @db.VarChar(255)
-  password                   String                   @db.VarChar(255)
-  phone                      String?                  @db.VarChar(50)
-  role                       users_role               @default(staff)
-  is_available               Boolean?                 @default(true)
-  employment_status          users_employment_status? @default(Full_Time)
-  birthday                   DateTime?                @db.Date
-  bank_name                  String?                  @db.VarChar(255)
-  account_number             String?                  @db.VarChar(255)
-  routing_number             String?                  @db.VarChar(255)
-  nib_number                 String?                  @db.VarChar(100)
-  vacation_balance           Int?                     @default(0)
-  passport_url               String?                  @db.VarChar(500)
-  license_url                String?                  @db.VarChar(500)
-  nib_doc_url                String?                  @db.VarChar(500)
-  police_record_url          String?                  @db.VarChar(500)
-  profile_pic_url            String?                  @db.VarChar(500)
-  business_license_url       String?                  @db.VarChar(500)
-  status                     users_status?            @default(active)
-  joined_date                DateTime?                @db.Date
-  created_at                 DateTime                 @default(now()) @db.Timestamp(0)
-  updated_at                 DateTime                 @default(now()) @db.Timestamp(0)
-  plan                       String?                  @default("Free") @db.VarChar(100)
-  is_upgraded                Boolean?                 @default(false)
-  concierge_member           Boolean?                 @default(false)
-  concierge_membership_since DateTime?                @db.Date
-}
-
-model vehicles {
-  id                  Int @id @default(autoincrement())
-  company_id          Int?
-  plate_number        String                 @db.VarChar(50)
-  model               String?                @db.VarChar(255)
-  type                String?                @db.VarChar(100)
-  vehicle_type        vehicles_vehicle_type? @default(Car)
-  capacity            String?                @db.VarChar(50)
-  fuel_level          Int?                   @default(100)
-  status              vehicles_status?       @default(available)
-  insurance_policy    String?                @db.VarChar(255)
-  registration_expiry DateTime?              @db.Date
-  inspection_date     DateTime?              @db.Date
-  diagnostic_status   String?                @db.VarChar(100)
-  created_at          DateTime               @default(now()) @db.Timestamp(0)
-  updated_at          DateTime               @default(now()) @db.Timestamp(0)
-}
-
-model vendors {
-  id           Int @id @default(autoincrement())
-  company_id   Int?
-  created_by   Int?
-  name         String          @db.VarChar(255)
-  email        String?         @db.VarChar(255)
-  phone        String?         @db.VarChar(50)
-  contact_name String?         @db.VarChar(255)
-  category     String?         @db.VarChar(100)
-  location     String?         @db.VarChar(255)
-  rating       Decimal         @default(0.00) @db.Decimal(5, 2)
-  delivery     Decimal         @default(0.00) @db.Decimal(5, 2)
-  status       vendors_status? @default(active)
-  created_at   DateTime        @default(now()) @db.Timestamp(0)
-  updated_at   DateTime        @default(now()) @db.Timestamp(0)
-}
-
-model warehouses {
-  id         Int @id @default(autoincrement())
-  company_id Int?
-  name       String             @db.VarChar(255)
-  location   String?            @db.VarChar(255)
-  capacity   Int?
-  manager_id Int?
-  status     warehouses_status? @default(active)
-  created_at DateTime           @default(now()) @db.Timestamp(0)
-  updated_at DateTime           @default(now()) @db.Timestamp(0)
-}
-
-enum inventory_movements_type {
-  entry
-  issue
-  loss
-  adjustment
-}
-
-enum leave_requests_leave_type {
-  vacation
-  sick
-  personal
-  bereavement
-}
-
-enum saas_plans_billing_cycle {
-  Monthly
-  Quarterly
-  Annually
-}
-
-enum missions_mission_type {
-  Delivery
-  Pickup
-  Transfer
-  Chauffeur
-  Custom
-}
-
-enum audit_logs_status {
-  pending
-  in_progress
-  completed
-  flagged
-}
-
-enum deliveries_mission_type {
-  Delivery
-  Pickup
-  Transfer
-  Chauffeur
-}
-
-enum staff_assignments_status {
-  Pending
-  In_Progress @map("In Progress")
-  Completed
-  Cancelled
-}
-
-enum vehicles_vehicle_type {
-  Van
-  Truck
-  Boat
-  Plane
-  Car
-  SUV
-}
-
-enum luxury_items_status {
-  Stored
-  In_Use      @map("In Use")
-  Transferred
-  Returned
-}
-
-enum staff_assignments_priority {
-  Low
-  Normal
-  High
-  Urgent
-}
-
-enum support_tickets_priority {
-  low
-  medium
-  high
-  urgent
-}
-
-enum warehouses_status {
-  active
-  inactive
-  maintenance
-}
-
-enum events_status {
-  planned
-  confirmed
-  in_progress
-  completed
-  cancelled
-}
-
-enum guest_requests_priority {
-  low
-  medium
-  high
-  urgent
-}
-
-enum invoices_status {
-  unpaid
-  partial
-  paid
-  overdue
-  cancelled
-}
-
-enum leave_requests_status {
-  pending
-  approved
-  rejected
-}
-
-enum payroll_status {
-  pending
-  processed
-  paid
-}
-
-enum purchase_orders_status {
-  Pending
-  Partially_Received @map("Partially Received")
-  Received
-  Cancelled
-}
-
-enum quotes_status {
-  Pending
-  Accepted
-  Rejected
-  Expired
-}
-
-enum routes_type {
-  Land
-  Sea
-  Air
-}
-
-enum saas_plans_status {
-  active
-  inactive
-}
-
-enum support_tickets_status {
-  open
-  in_progress
-  resolved
-  closed
-}
-
-enum users_role {
-  super_admin
-  admin
-  manager
-  operation
-  procurement
-  inventory
-  logistics
-  concierge
-  staff
-  customer
-  client
-  saas_client
-}
-
-enum companies_billing_cycle {
-  Monthly
-  Quarterly
-  Annually
-}
-
-enum customers_client_type {
-  Direct
-  SaaS
-  Enterprise
-  Individual
-}
-
-enum guest_requests_status {
-  pending
-  in_progress
-  completed
-  cancelled
-}
-
-enum missions_status {
-  pending
-  assigned
-  en_route
-  completed
-  cancelled
-}
-
-enum routes_status {
-  Active
-  Inactive
-}
-
-enum saas_requests_status {
-  Pending
-  Approved
-  Provisioned
-  Rejected
-}
-
-enum support_tickets_dispute_status {
-  none
-  pending
-  accepted
-  rejected
-}
-
-enum vehicles_status {
-  available
-  en_route
-  maintenance
-  decommissioned
-}
-
-enum customers_status {
-  active
-  inactive
-  suspended
-}
-
-enum projects_status {
-  planned
-  in_progress
-  completed
-  on_hold
-}
-
-enum purchase_requests_status {
-  Pending
-  Approved
-  Rejected
-  Received
-  Cancelled
-  Ordered
-  Quotes_Received @map("Quotes Received")
-  Partial_Receipt @map("Partial Receipt")
-  Completed
-}
-
-enum users_employment_status {
-  Full_Time @map("Full Time")
-  Part_Time @map("Part Time")
-  Probation
-  Inactive
-}
-
-enum purchase_requests_priority {
-  Low
-  Normal
-  High
-  Critical
-}
-
-enum inventory_inventory_type {
-  Marketplace
-  Internal
-  Client
-}
-
-enum vendors_status {
-  active
-  inactive
-  blacklisted
-}
-
-enum inventory_status {
-  in_stock
-  low_stock
-  out_of_stock
-}
-
-enum orders_status {
-  created
-  admin_review
-  concierge
-  operation
-  procurement
-  inventory
-  logistics
-  completed
-  cancelled
-  in_progress
-  delivered
-}
-
-enum companies_client_type {
-  SaaS
-  Personal
-  Business
-}
-
-enum orders_current_stage {
-  created
-  admin_review
-  concierge
-  operation
-  procurement
-  inventory
-  logistics
-  completed
-  in_progress
-}
-
-enum companies_tenant_type {
-  zanezion
-  saas
-  business
-  personal
-}
-
-enum deliveries_payout_status {
-  none
-  held
-  released
-  disputed
-  cancelled
-}
-
-enum companies_status {
-  active
-  pending
-  suspended
-  rejected
-}
-
-enum deliveries_status {
-  pending
-  pending_review
-  assigned
-  en_route
-  delivered
-  completed
-  cancelled
-}
-
-enum users_status {
-  pending
-  active
-  rejected
-  inactive
+  name         String
+  description  String?  @db.Text
+  price        Float
+  billingCycle String // "MONTHLY", "YEARLY"
+  maxUsers     Int
+  maxStorage   Int // in MB or GB
+  features     Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Organization {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  address   String?  @db.Text
+  country   String?
+  timezone  String?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenants Tenant[]
+
+  @@index([email])
+  @@index([status])
+  @@map("organizations")
+}
+
+model Tenant {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  subscriptionId Int?     @unique
+  tenantCode     String   @unique
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization       Organization   @relation(fields: [organizationId], references: [id])
+  users              User[]
+  subscriptions      Subscription[] @relation("TenantSubscriptions")
+  activeSubscription Subscription?  @relation("ActiveSubscription", fields: [subscriptionId], references: [id])
+
+  departments      Department[]
+  designations     Designation[]
+  employees        Employee[]
+  vendors          Vendor[]
+  employeeDocs     EmployeeDocument[]
+  purchaseReqs     PurchaseRequest[]
+  rfqs             RFQ[]
+  quotations       Quotation[]
+  purchaseOrders   PurchaseOrder[]
+  warehouses       Warehouse[]
+  itemCategories   ItemCategory[]
+  itemUnits        ItemUnit[]
+  items            Item[]
+  grns             GRN[]
+  inventoryStock   InventoryStock[]
+  stockMovements   StockMovement[]
+  clients          Client[]
+  clientContacts   ClientContact[]
+  orders           Order[]
+  orderItems       OrderItem[]
+  deliveries       Delivery[]
+  deliveryItems    DeliveryItem[]
+  missions         Mission[]
+  proofsOfDelivery ProofOfDelivery[]
+  invoices         Invoice[]
+  invoiceItems     InvoiceItem[]
+  payments         Payment[]
+  receipts         Receipt[]
+  vehicles         Vehicle[]
+  trackings        Tracking[]
+  supplyRoutes     SupplyRoute[]
+  urgentAlerts     UrgentAlert[]
+  supportTickets   SupportTicket[]
+  events           Event[]
+  guestRequests    GuestRequest[]
+  luxuryItems      LuxuryItem[]
+  leaveRequests    LeaveRequest[]
+  payrolls         Payroll[]
+
+  @@index([organizationId])
+  @@index([subscriptionId])
+  @@index([tenantCode])
+  @@index([status])
+  @@map("tenants")
+}
+
+model Subscription {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  planId        Int
+  startDate     DateTime
+  endDate       DateTime
+  status        String // "ACTIVE", "EXPIRED", "CANCELLED"
+  paymentStatus String
+  autoRenew     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  plan            Plan    @relation(fields: [planId], references: [id])
+  tenant          Tenant  @relation("TenantSubscriptions", fields: [tenantId], references: [id])
+  activeForTenant Tenant? @relation("ActiveSubscription")
+
+  @@index([tenantId])
+  @@index([planId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ------------------------------------------------------
+// ADMIN CORE MODULE (PHASE 4)
+// ------------------------------------------------------
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  name        String
+  code        String
+  description String?  @db.Text
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  designations Designation[]
+  employees    Employee[]
+  purchaseReqs PurchaseRequest[]
+
+  @@index([tenantId])
+  @@index([code])
+  @@index([status])
+  @@map("departments")
+}
+
+model Designation {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int
+  departmentId Int
+  name         String
+  description  String?  @db.Text
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+  employees  Employee[]
+
+  @@index([tenantId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("designations")
+}
+
+model Employee {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  userId        Int      @unique
+  employeeCode  String
+  firstName     String
+  lastName      String
+  phone         String?
+  departmentId  Int
+  designationId Int
+  joiningDate   DateTime
+  vehicleType   String?
+  vehiclePlate  String?
+  vehicleModel  String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  user               User               @relation(fields: [userId], references: [id])
+  department         Department         @relation(fields: [departmentId], references: [id])
+  designation        Designation        @relation(fields: [designationId], references: [id])
+  documents          EmployeeDocument[]
+  purchaseReqs       PurchaseRequest[]
+  managedWarehouses  Warehouse[]        @relation("WarehouseManager")
+  grnsReceived       GRN[]              @relation("GRNReceiver")
+  ordersCreated      Order[]            @relation("OrderCreator")
+  assignedDeliveries Delivery[]         @relation("DeliveryAssignee")
+  assignedMissions   Mission[]          @relation("MissionAssignee")
+
+  @@index([tenantId])
+  @@index([employeeCode])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([status])
+  @@map("employees")
+}
+
+model Vendor {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  vendorCode    String
+  companyName   String
+  contactPerson String?
+  email         String
+  phone         String?
+  address       String?  @db.Text
+  status        String   @default("active")
+  category      String?
+  rating        Int?     @default(90)
+  delivery      Int?     @default(90)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  rfqs           RFQ[]
+  quotations     Quotation[]
+  purchaseOrders PurchaseOrder[]
+  grns           GRN[]
+
+  @@index([tenantId])
+  @@index([vendorCode])
+  @@index([status])
+  @@map("vendors")
+}
+
+model EmployeeDocument {
+  id                 Int       @id @default(autoincrement())
+  tenantId           Int
+  employeeId         Int
+  documentType       String
+  documentNumber     String?
+  filePath           String
+  verificationStatus String    @default("pending") // pending, verified, rejected
+  verifiedBy         Int?
+  verifiedAt         DateTime?
+  expiryDate         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([employeeId])
+  @@index([verificationStatus])
+  @@map("employee_documents")
+}
+
+// ------------------------------------------------------
+// PROCUREMENT MODULE (PHASE 5)
+// ------------------------------------------------------
+
+model PurchaseRequest {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int
+  prNumber     String
+  title        String
+  description  String?  @db.Text
+  departmentId Int
+  requestedBy  Int
+  status       String   @default("draft") // draft, submitted, department_approved, procurement_review, approved, rejected, cancelled
+  priority     String   @default("medium") // low, medium, high, urgent
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant         Tenant                @relation(fields: [tenantId], references: [id])
+  department     Department            @relation(fields: [departmentId], references: [id])
+  requester      Employee              @relation(fields: [requestedBy], references: [id])
+  items          PurchaseRequestItem[]
+  rfqs           RFQ[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId])
+  @@index([prNumber])
+  @@index([status])
+  @@index([departmentId])
+  @@index([requestedBy])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestItem {
+  id                Int      @id @default(autoincrement())
+  purchaseRequestId Int
+  itemName          String
+  description       String?  @db.Text
+  quantity          Float
+  receivedQty       Float    @default(0)
+  pendingReceiveQty Float    @default(0)
+  unit              String // e.g., kg, pieces, boxes
+  estimatedCost     Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseRequestId])
+  @@map("purchase_request_items")
+}
+
+model RFQ {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int
+  rfqNumber         String
+  purchaseRequestId Int
+  vendorId          Int
+  status            String   @default("sent") // sent, received, closed
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  quotations      Quotation[]
+
+  @@index([tenantId])
+  @@index([rfqNumber])
+  @@index([purchaseRequestId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("rfqs")
+}
+
+model Quotation {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  rfqId     Int?
+  vendorId  Int?
+  amount    Float
+  remarks   String?  @db.Text
+  status    String   @default("pending") // pending, approved, rejected
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  rfq            RFQ?            @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId])
+  @@index([rfqId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("quotations")
+}
+
+model PurchaseOrder {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int
+  poNumber          String
+  vendorId          Int
+  purchaseRequestId Int
+  quotationId       Int?
+  totalAmount       Float
+  paymentTerms      String?  @default("Net 30")
+  packingSlip       String?
+  adminApproved     Boolean  @default(false)
+  status            String   @default("draft") // draft, approved, rejected, cancelled, waiting_for_delivery
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  vendor          Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  quotation       Quotation?      @relation(fields: [quotationId], references: [id])
+  grns            GRN[]
+
+  @@index([tenantId])
+  @@index([poNumber])
+  @@index([vendorId])
+  @@index([purchaseRequestId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+// ------------------------------------------------------
+// INVENTORY MODULE (PHASE 6)
+// ------------------------------------------------------
+
+model ItemCategory {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  name        String
+  description String?  @db.Text
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  items  Item[]
+
+  @@index([tenantId])
+  @@map("item_categories")
+}
+
+model ItemUnit {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  name      String // e.g., Kilogram, Piece
+  shortName String // e.g., kg, pc
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  items  Item[]
+
+  @@index([tenantId])
+  @@map("item_units")
+}
+
+model Item {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  categoryId    Int
+  unitId        Int
+  sku           String
+  name          String
+  description   String?  @db.Text
+  reorderLevel  Float    @default(0)
+  inventoryType String   @default("INTERNAL") // INTERNAL, MARKETPLACE
+  clientId      Int?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  client         Client?          @relation(fields: [clientId], references: [id])
+  category       ItemCategory     @relation(fields: [categoryId], references: [id])
+  unit           ItemUnit         @relation(fields: [unitId], references: [id])
+  grnItems       GRNItem[]
+  inventoryStock InventoryStock[]
+  stockMovements StockMovement[]
+  orderItems     OrderItem[]
+  deliveryItems  DeliveryItem[]
+  invoiceItems   InvoiceItem[]
+
+  @@index([tenantId])
+  @@index([categoryId])
+  @@index([unitId])
+  @@index([sku])
+  @@map("items")
+}
+
+model Warehouse {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  name      String
+  location  String?  @db.Text
+  capacity  Int?     @default(0)
+  managerId Int?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  manager        Employee?        @relation("WarehouseManager", fields: [managerId], references: [id])
+  grns           GRN[]
+  inventoryStock InventoryStock[]
+  stockMovements StockMovement[]
+  deliveries     Delivery[]
+
+  @@index([tenantId])
+  @@index([managerId])
+  @@map("warehouses")
+}
+
+model GRN {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int
+  grnNumber       String
+  purchaseOrderId Int
+  vendorId        Int
+  warehouseId     Int
+  receivedById    Int
+  deliveryChallan String?
+  remarks         String?  @db.Text
+  status          String   @default("draft") // draft, approved, rejected
+  receivedDate    DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  purchaseOrder  PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id])
+  vendor         Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  receiver       Employee        @relation("GRNReceiver", fields: [receivedById], references: [id])
+  items          GRNItem[]
+  stockMovements StockMovement[]
+
+  @@index([tenantId])
+  @@index([grnNumber])
+  @@index([purchaseOrderId])
+  @@index([vendorId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("grns")
+}
+
+model GRNItem {
+  id               Int      @id @default(autoincrement())
+  grnId            Int
+  itemId           Int
+  orderedQuantity  Float
+  receivedQuantity Float
+  acceptedQuantity Float
+  rejectedQuantity Float    @default(0)
+  unitPrice        Float
+  totalPrice       Float
+  remarks          String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  grn  GRN  @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id])
+
+  @@index([grnId])
+  @@index([itemId])
+  @@map("grn_items")
+}
+
+model InventoryStock {
+  id               Int      @id @default(autoincrement())
+  tenantId         Int
+  warehouseId      Int
+  itemId           Int
+  stockType        String   @default("INTERNAL") // INTERNAL, MARKETPLACE
+  quantity         Float    @default(0)
+  reservedQuantity Float    @default(0) // Added in Phase 7
+  lastUpdated      DateTime @default(now()) @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@unique([warehouseId, itemId])
+  @@index([tenantId])
+  @@map("inventory_stock")
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  warehouseId   Int
+  itemId        Int
+  movementType  String // IN, OUT, TRANSFER, ADJUSTMENT
+  quantity      Float
+  referenceType String // GRN, MANUAL, TRANSFER
+  referenceId   Int? // ID of GRN or other reference
+  remarks       String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+  grn       GRN?      @relation(fields: [referenceId], references: [id], map: "stock_movement_grn_fk")
+
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@index([itemId])
+  @@index([movementType])
+  @@map("stock_movements")
+}
+
+// ------------------------------------------------------
+// CLIENTS & ORDERS MODULE (PHASE 7)
+// ------------------------------------------------------
+
+model Client {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  clientCode    String   @unique
+  companyName   String
+  contactPerson String
+  email         String
+  phone         String
+  address       String?  @db.Text
+  city          String?
+  country       String?
+  status        String   @default("active")
+  clientType    String?
+  billingCycle  String?
+  paymentMethod String?
+  plan          String?
+  logoUrl       String?  @db.Text
+  source        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant     Tenant          @relation(fields: [tenantId], references: [id])
+  contacts   ClientContact[]
+  orders     Order[]
+  deliveries Delivery[]
+  invoices   Invoice[]
+  items      Item[]
+  Event      Event[]
+
+  @@index([tenantId])
+  @@index([clientCode])
+  @@map("clients")
+}
+
+model ClientContact {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  clientId    Int
+  name        String
+  designation String?
+  email       String?
+  phone       String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@map("client_contacts")
+}
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  orderNumber String
+  clientId    Int
+  createdById Int
+  status      String   @default("draft") // draft, submitted, review, approved, ready_for_delivery, rejected, cancelled
+  priority    String   @default("normal") // normal, high, urgent
+  orderType   String   @default("PRODUCT") // PRODUCT, CHAUFFEUR, CONCIERGE
+  metadata    Json?
+  totalAmount Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  client     Client      @relation(fields: [clientId], references: [id])
+  creator    Employee    @relation("OrderCreator", fields: [createdById], references: [id])
+  items      OrderItem[]
+  deliveries Delivery[]
+  missions   Mission[]
+  invoices   Invoice[]
+
+  @@index([tenantId])
+  @@index([orderNumber])
+  @@index([clientId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  orderId     Int
+  itemId      Int
+  warehouseId Int
+  quantity    Float
+  unitPrice   Float
+  totalPrice  Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item          Item           @relation(fields: [itemId], references: [id])
+  deliveryItems DeliveryItem[]
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@map("order_items")
+}
+
+// ------------------------------------------------------
+// DELIVERY, LOGISTICS & MISSION MODULE (PHASE 8)
+// ------------------------------------------------------
+
+model Delivery {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int
+  deliveryNumber String
+  orderId        Int
+  clientId       Int
+  assignedTo     Int?
+  warehouseId    Int
+  status         String    @default("pending") // pending, assigned, dispatched, in_transit, delivered, failed, cancelled
+  dispatchDate   DateTime?
+  deliveryDate   DateTime?
+  remarks        String?   @db.Text
+  missionType    String    @default("Delivery")
+  transportMode  String    @default("Road")
+  vehicleRef     String?
+  etaSchedule    DateTime?
+  requestDate    DateTime?
+  dueDate        DateTime?
+  pickupLocation String?
+  dropLocation   String?
+  routeDistance  Float?
+  staffPayRate   Float?
+  deliveryFee    Float?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  order     Order             @relation(fields: [orderId], references: [id])
+  client    Client            @relation(fields: [clientId], references: [id])
+  assignee  Employee?         @relation("DeliveryAssignee", fields: [assignedTo], references: [id])
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  items     DeliveryItem[]
+  missions  Mission[]
+  proofs    ProofOfDelivery[]
+  invoices  Invoice[]
+
+  @@index([tenantId])
+  @@index([deliveryNumber])
+  @@index([orderId])
+  @@index([clientId])
+  @@index([assignedTo])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("deliveries")
+}
+
+model DeliveryItem {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
+  deliveryId  Int
+  orderItemId Int
+  itemId      Int
+  quantity    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  delivery  Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@index([tenantId])
+  @@index([deliveryId])
+  @@index([orderItemId])
+  @@index([itemId])
+  @@map("delivery_items")
+}
+
+model Mission {
+  id                 Int       @id @default(autoincrement())
+  tenantId           Int
+  missionNumber      String
+  missionType        String    @default("DELIVERY") // DELIVERY, LOGISTICS, CHAUFFEUR
+  deliveryId         Int?
+  orderId            Int?
+  assignedEmployeeId Int
+  startDate          DateTime?
+  endDate            DateTime?
+  status             String    @default("assigned") // assigned, in_progress, completed, cancelled
+  metadata           Json?
+  remarks            String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  delivery Delivery? @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  order    Order?    @relation(fields: [orderId], references: [id])
+  assignee Employee  @relation("MissionAssignee", fields: [assignedEmployeeId], references: [id])
+
+  @@index([tenantId])
+  @@index([missionNumber])
+  @@index([deliveryId])
+  @@index([assignedEmployeeId])
+  @@index([status])
+  @@map("missions")
+}
+
+model ProofOfDelivery {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int
+  deliveryId        Int
+  receiverName      String
+  receiverPhone     String?
+  receiverSignature String?  @db.LongText // Can be URL or Base64
+  deliveryPhoto     String?  @db.LongText // Can be URL
+  remarks           String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([deliveryId])
+  @@map("proofs_of_delivery")
+}
+
+// ------------------------------------------------------
+// FINANCE, INVOICES & PAYMENTS MODULE (PHASE 9)
+// ------------------------------------------------------
+
+model Invoice {
+  id             Int      @id @default(autoincrement())
+  tenantId       Int
+  invoiceNumber  String
+  clientId       Int
+  orderId        Int
+  deliveryId     Int?
+  invoiceDate    DateTime
+  dueDate        DateTime
+  subtotal       Float    @default(0)
+  taxAmount      Float    @default(0)
+  discountAmount Float    @default(0)
+  totalAmount    Float    @default(0)
+  status         String   @default("draft") // draft, generated, approved, sent, partially_paid, paid, cancelled
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  client   Client        @relation(fields: [clientId], references: [id])
+  order    Order         @relation(fields: [orderId], references: [id])
+  delivery Delivery?     @relation(fields: [deliveryId], references: [id])
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@index([tenantId])
+  @@index([invoiceNumber])
+  @@index([clientId])
+  @@index([orderId])
+  @@index([deliveryId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  invoiceId Int
+  itemId    Int
+  quantity  Float
+  unitPrice Float
+  tax       Float    @default(0)
+  discount  Float    @default(0)
+  total     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item    Item    @relation(fields: [itemId], references: [id])
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([itemId])
+  @@map("invoice_items")
+}
+
+model Payment {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int
+  invoiceId       Int
+  paymentDate     DateTime
+  paymentMethod   String // cash, bank_transfer, cheque, credit_card
+  referenceNumber String?
+  amount          Float
+  remarks         String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  invoice  Invoice   @relation(fields: [invoiceId], references: [id])
+  receipts Receipt[]
+
+  @@index([tenantId])
+  @@index([invoiceId])
+  @@index([referenceNumber])
+  @@index([paymentMethod])
+  @@map("payments")
+}
+
+model Receipt {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  receiptNumber String
+  paymentId     Int
+  receiptDate   DateTime
+  amount        Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([receiptNumber])
+  @@index([paymentId])
+  @@map("receipts")
+}
+
+// ------------------------------------------------------
+// FLEET / VEHICLES
+// ------------------------------------------------------
+
+model Vehicle {
+  id                 Int     @id @default(autoincrement())
+  vehicleId          String // e.g. FLT-001  (tenant-scoped unique)
+  type               String  @default("Luxury Truck")
+  model              String
+  capacity           String?
+  fuel               String?
+  status             String  @default("Active")
+  location           String?
+  insurancePolicy    String?
+  registrationExpiry String?
+  inspectionDate     String?
+  diagnosticStatus   String?
+  tenantId           Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([vehicleId, tenantId])
+  @@index([tenantId])
+  @@map("vehicles")
+}
+
+// ------------------------------------------------------
+// LEAVE MANAGEMENT
+// ------------------------------------------------------
+
+model LeaveRequest {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int?
+  userId    Int
+  leaveType String
+  startDate DateTime
+  endDate   DateTime
+  hours     Int?
+  reason    String?  @db.Text
+  status    String   @default("pending") // pending, approved, rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model Tracking {
+  id        Int     @id @default(autoincrement())
+  tenantId  Int
+  trackerId String
+  asset     String
+  location  String
+  signal    String  @default("Strong")
+  eta       String?
+  status    String  @default("Active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([trackerId, tenantId])
+  @@index([tenantId])
+  @@index([trackerId])
+  @@map("tracking")
+}
+
+model SupplyRoute {
+  id       Int     @id @default(autoincrement())
+  tenantId Int
+  routeId  String
+  name     String
+  type     String  @default("Land")
+  distance String?
+  avgTime  String?
+  status   String  @default("Active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([routeId, tenantId])
+  @@index([tenantId])
+  @@index([routeId])
+  @@map("supply_routes")
+}
+
+model UrgentAlert {
+  id       Int     @id @default(autoincrement())
+  tenantId Int
+  alertId  String
+  task     String
+  priority String  @default("Critical")
+  time     String?
+  location String?
+  assignee String? @default("Pending")
+  status   String  @default("Active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([alertId, tenantId])
+  @@index([tenantId])
+  @@map("urgent_alerts")
+}
+
+model SupportTicket {
+  id          Int     @id @default(autoincrement())
+  tenantId    Int
+  ticketId    String
+  title       String
+  description String?
+  priority    String  @default("Medium")
+  status      String  @default("Open")
+  category    String?
+  clientId    Int?
+  managerId   Int?
+  createdById Int?
+  createdByEmail String?
+  createdByName  String?
+  messages    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([ticketId, tenantId])
+  @@index([tenantId])
+  @@map("support_tickets")
+}
+
+model Event {
+  id              Int     @id @default(autoincrement())
+  tenantId        Int
+  eventId         String
+  name            String
+  date            String?
+  location        String?
+  status          String  @default("Scheduled")
+  clientId        Int?
+  managerId       Int?
+  specialRequests String? @db.Text
+  plannerName     String?
+  guestCount      Int?
+  moodBoardUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  client  Client? @relation(fields: [clientId], references: [id])
+  manager User?   @relation(fields: [managerId], references: [id])
+
+  @@unique([eventId, tenantId])
+  @@index([tenantId])
+  @@map("events")
+}
+
+model GuestRequest {
+  id          Int     @id @default(autoincrement())
+  tenantId    Int
+  requestId   String
+  guestName   String
+  room        String?
+  requestType String?
+  status      String  @default("Pending")
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([requestId, tenantId])
+  @@index([tenantId])
+  @@map("guest_requests")
+}
+
+model LuxuryItem {
+  id       Int     @id @default(autoincrement())
+  tenantId Int
+  itemId   String
+  name     String
+  category String?
+  price    Float?
+  status   String  @default("Available")
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([itemId, tenantId])
+  @@index([tenantId])
+  @@map("luxury_items")
+}
+
+model SecurityEvent {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @default(1)
+  eventType String
+  details   String?
+  location  String?
+  reporter  String?
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("security_events")
+}
+
+model Payroll {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int
+  userId           Int
+  baseSalary       Float     @default(0)
+  bonus            Float     @default(0)
+  nibDeduction     Float     @default(0)
+  medicalDeduction Float     @default(0)
+  pensionDeduction Float     @default(0)
+  savingsDeduction Float     @default(0)
+  birthdayClub     Float     @default(0)
+  netAmount        Float     @default(0)
+  method           String    @default("Direct Deposit")
+  paymentDate      DateTime?
+  status           String    @default("Pending")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@map("payrolls")
 }
