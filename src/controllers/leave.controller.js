@@ -3,8 +3,9 @@ import { sendResponse } from '../utils/response.js';
 
 export const getLeaveRequests = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user?.tenantId;
+    const roleName = req.user?.role?.name || '';
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN', 'superadmin', 'admin'].includes(roleName);
+    const tenantIdToFilter = isAdmin ? null : req.user?.tenantId;
 
     const where = {};
     if (tenantIdToFilter) where.tenantId = tenantIdToFilter;
@@ -79,14 +80,21 @@ export const createLeaveRequest = async (req, res, next) => {
 export const updateLeaveRequest = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, leave_type, start_date, end_date, reason, hours } = req.body;
 
-    // Convert status to Capitalized string as the UI uses "Approved", "Rejected", "Pending"
-    const capitalizedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    const dataToUpdate = {};
+    if (status) {
+      dataToUpdate.status = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    }
+    if (leave_type) dataToUpdate.leaveType = leave_type;
+    if (start_date) dataToUpdate.startDate = new Date(start_date);
+    if (end_date) dataToUpdate.endDate = new Date(end_date);
+    if (reason) dataToUpdate.reason = reason;
+    if (hours !== undefined) dataToUpdate.hours = hours ? Number(hours) : null;
 
     const updatedRequest = await prisma.leaveRequest.update({
       where: { id: Number(id) },
-      data: { status: capitalizedStatus },
+      data: dataToUpdate,
       include: {
         user: { select: { name: true, email: true } },
       },
@@ -106,6 +114,18 @@ export const updateLeaveRequest = async (req, res, next) => {
     };
 
     sendResponse(res, 200, 'Leave request updated successfully', mappedData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteLeaveRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await prisma.leaveRequest.delete({
+      where: { id: Number(id) },
+    });
+    sendResponse(res, 200, 'Leave request deleted successfully');
   } catch (error) {
     next(error);
   }

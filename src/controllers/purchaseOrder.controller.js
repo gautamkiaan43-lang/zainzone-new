@@ -85,9 +85,16 @@ export const receivePurchaseOrderGoods = async (req, res, next) => {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
     const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
 
+    // Only Admin or Super Admin can mark receipt as approved
+    const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(req.user.role?.name);
+    const body = { ...req.body };
+    if (!isAdmin) {
+      body.adminApproved = false;
+    }
+
     const result = await poService.receivePurchaseOrderGoods(
       Number(req.params.id),
-      req.body,
+      body,
       tenantIdToFilter,
       req.user.id
     );

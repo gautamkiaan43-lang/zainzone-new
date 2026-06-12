@@ -114,8 +114,70 @@ export const updatePurchaseOrderStatus = async (id, status, tenantId, performerI
 
 export const updatePurchaseOrder = async (id, data, tenantId, performerId) => {
   const po = await getPurchaseOrderById(id, tenantId);
+  const { items, ...poData } = data;
 
-  const updatedPO = await poRepository.updatePurchaseOrder(id, data);
+  const updatedPO = await prisma.$transaction(async (tx) => {
+    // 1. Update PO fields
+    const upPO = await tx.purchaseOrder.update({
+      where: { id },
+      data: poData,
+      include: {
+        vendor: true,
+        purchaseRequest: { include: { items: true, department: true } },
+        quotation: true
+      }
+    });
+
+    // 2. If items are provided, update PurchaseRequestItems
+    if (items && Array.isArray(items)) {
+      const existingItems = await tx.purchaseRequestItem.findMany({
+        where: { purchaseRequestId: po.purchaseRequestId }
+      });
+      const existingIds = existingItems.map(it => it.id);
+
+      const incomingIds = items.filter(it => it.id && !String(it.id).startsWith('temp') && !isNaN(Number(it.id))).map(it => Number(it.id));
+      const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
+
+      if (idsToDelete.length > 0) {
+        await tx.purchaseRequestItem.deleteMany({
+          where: { id: { in: idsToDelete } }
+        });
+      }
+
+      for (const item of items) {
+        const itemData = {
+          itemName: item.name,
+          quantity: Number(item.orderedQty ?? item.quantity),
+          estimatedCost: Number(item.price),
+          unit: item.unit || 'pcs'
+        };
+
+        const isTempId = !item.id || String(item.id).startsWith('temp') || isNaN(Number(item.id));
+        if (!isTempId && existingIds.includes(Number(item.id))) {
+          await tx.purchaseRequestItem.update({
+            where: { id: Number(item.id) },
+            data: itemData
+          });
+        } else {
+          await tx.purchaseRequestItem.create({
+            data: {
+              ...itemData,
+              purchaseRequestId: po.purchaseRequestId
+            }
+          });
+        }
+      }
+    }
+
+    return await tx.purchaseOrder.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        purchaseRequest: { include: { items: true, department: true } },
+        quotation: true
+      }
+    });
+  });
 
   await logAudit({
     module: 'PURCHASE_ORDERS',
@@ -126,8 +188,8 @@ export const updatePurchaseOrder = async (id, data, tenantId, performerId) => {
     performedBy: performerId
   });
 
-  const items = updatedPO.purchaseRequest?.items || [];
-  const mappedItems = items.map(item => ({
+  const updatedItems = updatedPO.purchaseRequest?.items || [];
+  const mappedItems = updatedItems.map(item => ({
     id: item.id,
     name: item.itemName || item.name || '',
     orderedQty: item.quantity || item.qty || 0,
@@ -165,6 +227,10 @@ export const deletePurchaseOrder = async (id, tenantId, performerId) => {
 
 export const receivePurchaseOrderGoods = async (id, body, tenantId, performerId) => {
   const { items, packingSlip, adminApproved } = body;
+
+  if (!packingSlip) {
+    throw new AppError('Packing slip / Delivery note is required to receive goods', 400);
+  }
 
   const po = await getPurchaseOrderById(id, tenantId);
   if (!po) {

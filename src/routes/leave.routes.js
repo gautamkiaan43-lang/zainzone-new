@@ -9,5 +9,6 @@ router.use(authenticate);
 router.get('/', leaveController.getLeaveRequests);
 router.post('/', leaveController.createLeaveRequest);
 router.put('/:id', leaveController.updateLeaveRequest);
+router.delete('/:id', leaveController.deleteLeaveRequest);
 
 export default router;

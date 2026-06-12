@@ -12,8 +12,19 @@ export const updatePurchaseOrderStatusSchema = z.object({
   status: z.string({ required_error: 'Valid status is required' })
 });
 
+const purchaseOrderItemSchema = z.object({
+  id: z.union([z.number(), z.string()]).optional(),
+  name: z.string().min(1, 'Item name is required'),
+  orderedQty: z.number().positive('Ordered quantity must be positive'),
+  price: z.number().nonnegative('Unit price must be non-negative'),
+  category: z.string().optional(),
+  receivedQty: z.number().nonnegative().optional(),
+  pendingQty: z.number().nonnegative().optional()
+});
+
 export const updatePurchaseOrderSchema = z.object({
   paymentTerms: z.string().optional(),
   status: z.string().optional(),
-  totalAmount: z.number().nonnegative().optional()
+  totalAmount: z.number().nonnegative().optional(),
+  items: z.array(purchaseOrderItemSchema).optional()
 });
