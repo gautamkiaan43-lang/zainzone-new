@@ -20,7 +20,7 @@ async function main() {
     if (!dept) dept = await prisma.department.create({ data: { tenantId: user.tenantId || 1, name: 'General', code: 'GEN' } });
     
     let desig = await prisma.designation.findFirst({ where: { tenantId: user.tenantId || 1 } });
-    if (!desig) desig = await prisma.designation.create({ data: { tenantId: user.tenantId || 1, departmentId: dept.id, title: 'Staff', code: 'STF' } });
+    if (!desig) desig = await prisma.designation.create({ data: { tenantId: user.tenantId || 1, departmentId: dept.id, name: 'Staff' } });
 
     await prisma.employee.create({
       data: {

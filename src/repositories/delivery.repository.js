@@ -109,7 +109,6 @@ export const updateDelivery = async (id, data) => {
   delete parsedData.items;
   delete parsedData.deliveryNumber;
   delete parsedData.tenantId;
-  delete parsedData.status; // status is usually updated via updateDeliveryStatus
   
   return await prisma.delivery.update({
     where: { id },

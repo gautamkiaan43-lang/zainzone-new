@@ -1,5 +1,6 @@
 import * as vendorService from '../services/vendor.service.js';
 import { sendResponse } from '../utils/response.js';
+import AppError from '../utils/AppError.js';
 
 export const createVendor = async (req, res, next) => {
   try {
@@ -19,7 +20,7 @@ export const createVendor = async (req, res, next) => {
       email: payload.email,
       phone: payload.phone || null,
       address: payload.address || null,
-      status: payload.status || "inactive",
+      status: "inactive", // Always default to inactive on create for all roles
       category: payload.category || null,
       rating: payload.rating !== undefined ? Number(payload.rating) : 90,
       delivery: payload.delivery !== undefined ? Number(payload.delivery) : 90
@@ -72,7 +73,13 @@ export const updateVendor = async (req, res, next) => {
     if (payload.email !== undefined) vendorData.email = payload.email;
     if (payload.phone !== undefined) vendorData.phone = payload.phone;
     if (payload.address !== undefined) vendorData.address = payload.address;
-    if (payload.status !== undefined) vendorData.status = payload.status;
+    const existingVendor = await vendorService.getVendorById(Number(req.params.id), tenantIdToFilter);
+    if (payload.status !== undefined && payload.status !== existingVendor.status) {
+      if (payload.status === 'active' && !isSuperAdmin) {
+        throw new AppError('Only Super Admins can activate vendors', 403);
+      }
+      vendorData.status = payload.status;
+    }
     if (payload.category !== undefined) vendorData.category = payload.category;
     if (payload.rating !== undefined) vendorData.rating = Number(payload.rating);
     if (payload.delivery !== undefined) vendorData.delivery = Number(payload.delivery);
