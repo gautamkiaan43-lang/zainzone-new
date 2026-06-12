@@ -191,7 +191,7 @@ if (true) {
 // ==========================================
 const handleRequest = async (method, url, data) => {
   let path = url.replace(API_BASE_URL, '').split('?')[0];
-  path = path.replace(/^\/api\/v1/, '');
+  path = path.replace(/^\/api(\/v\d+)?/, '');
   if (!path.startsWith('/')) path = '/' + path;
 
   const getDB = (key) => JSON.parse(global.__mockDB__[String(DB_PREFIX + key)] || '[]');
