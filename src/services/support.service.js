@@ -12,7 +12,7 @@ export const createTicket = async (data, performerId, tenantId) => {
 
   const payload = {
     ticketId,
-    title: data.title || data.issue || 'Support Request',
+    title: data.subject || data.title || data.issue || 'Support Request',
     description: data.description || '',
     priority: data.priority || 'Medium',
     status: data.status || 'Open',

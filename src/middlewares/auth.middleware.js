@@ -32,7 +32,10 @@ const MENU_NAME_MAPPING = {
   'DEPARTMENTS': 'Personnel',
   'DESIGNATIONS': 'Personnel',
   'EMPLOYEES': 'Personnel',
-  'EMPLOYEE_DOCUMENTS': 'Personnel'
+  'EMPLOYEE_DOCUMENTS': 'Personnel',
+  'SUPPORT': 'Support',
+  'CONCIERGE': 'Concierge',
+  'TRACKING': 'Logistics'
 };
 
 export const authenticate = async (req, res, next) => {
@@ -96,7 +99,7 @@ export const checkPermission = (routeIdentifier, action) => {
         return next();
       }
 
-      if (isCustomer && ['CREATE', 'UPDATE', 'DELETE', 'ADJUST', 'TRANSFER'].includes(action) && ['ORDERS', 'SUPPORT', 'DELIVERIES', 'ITEMS', 'STOCK', 'PURCHASE_REQUESTS', 'USERS'].includes(routeIdentifier)) {
+      if (isCustomer && ['CREATE', 'UPDATE', 'DELETE', 'ADJUST', 'TRANSFER', 'APPROVE'].includes(action) && ['ORDERS', 'SUPPORT', 'CONCIERGE', 'DELIVERIES', 'ITEMS', 'STOCK', 'PURCHASE_REQUESTS', 'USERS'].includes(routeIdentifier)) {
         console.log(`[RBAC] Role: ${roleName} | Route: ${routeIdentifier} | Action: ${action} | Result: ALLOWED (Customer Action Bypass)`);
         return next();
       }
@@ -119,6 +122,7 @@ export const checkPermission = (routeIdentifier, action) => {
             case 'UPDATE': hasAccess = roleMenu.can_edit; break;
             case 'DELETE': hasAccess = roleMenu.can_delete; break;
             case 'MANAGE': hasAccess = roleMenu.can_edit || roleMenu.can_add; break;
+            case 'APPROVE': hasAccess = roleMenu.can_edit; break;
             default: hasAccess = roleMenu.can_edit; break; // ADJUST, TRANSFER, ASSIGN_PERMISSIONS etc.
           }
         }
@@ -143,7 +147,7 @@ export const checkPermission = (routeIdentifier, action) => {
           return next();
         }
 
-        if (['CREATE', 'UPDATE', 'DELETE', 'MANAGE', 'ADJUST', 'TRANSFER'].includes(action) && operationalRoutes.includes(routeIdentifier) && isStaff) {
+        if (['CREATE', 'UPDATE', 'DELETE', 'MANAGE', 'ADJUST', 'TRANSFER', 'APPROVE'].includes(action) && operationalRoutes.includes(routeIdentifier) && isStaff) {
           console.log(`[RBAC] Role: ${roleName} | Route: ${routeIdentifier} | Action: ${action} | Result: ALLOWED (Staff Operational Bypass)`);
           return next();
         }

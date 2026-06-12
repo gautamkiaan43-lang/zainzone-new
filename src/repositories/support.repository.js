@@ -68,10 +68,12 @@ export const createGuestRequest = async (data) => {
   const dbData = {};
   const metadataExt = {};
   Object.keys(data).forEach(key => {
-    if (validDbKeys.includes(key)) {
-      dbData[key] = data[key];
-    } else {
-      metadataExt[key] = data[key];
+    if (data[key] !== undefined) {
+      if (validDbKeys.includes(key)) {
+        dbData[key] = data[key];
+      } else {
+        metadataExt[key] = data[key];
+      }
     }
   });
 

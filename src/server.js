@@ -1,6 +1,8 @@
+import http from 'http';
 import app from './app.js';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { initSocket } from './utils/socket.js';
 
 dotenv.config();
 
@@ -13,7 +15,13 @@ async function startServer() {
     await prisma.$connect();
     console.log('✅ Database connected successfully');
 
-    app.listen(PORT, () => {
+    // Wrap Express app with HTTP server
+    const server = http.createServer(app);
+    
+    // Initialize Socket.io
+    initSocket(server);
+
+    server.listen(PORT, () => {
       console.log(`🚀 ZaneZion Foundation Server is running on port ${PORT}`);
     });
   } catch (error) {
