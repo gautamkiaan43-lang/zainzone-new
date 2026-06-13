@@ -20,13 +20,13 @@ export const createClient = async (req, res, next) => {
       clientCode: payload.clientCode || `CLT-${Date.now().toString().slice(-6)}`,
       companyName: payload.companyName || payload.name || "Unknown Company",
       contactPerson: payload.contactPerson || payload.contact || payload.name || "Admin",
-      email: updatedClient.email,
+      email: payload.email,
       phone: payload.phone,
       address: payload.address || payload.location || null,
       city: payload.city || null,
       country: payload.country || payload.location || null,
       status: payload.status || "active",
-      clientType: updatedClient.clientType || payload.client_type || null,
+      clientType: payload.clientType || payload.client_type || null,
       billingCycle: payload.billingCycle || payload.billing_cycle || null,
       paymentMethod: payload.paymentMethod || payload.payment_method || null,
       plan: payload.plan || null,
@@ -35,6 +35,31 @@ export const createClient = async (req, res, next) => {
     };
 
     const client = await clientService.createClient(clientData, req.user.id, tenantIdToUse);
+
+    // User Provisioning Logic
+    if (payload.password && client.email) {
+      const existingUser = await prisma.user.findFirst({
+        where: { email: client.email }
+      });
+      
+      const roleId = client.clientType === 'SaaS' ? 14 : 8; // Default to SAAS_CLIENT or BUSINESS_CLIENT
+      
+      if (!existingUser) {
+        await userService.createUser({
+          name: client.companyName || 'SaaS Client',
+          email: client.email,
+          password: payload.password,
+          roleId: roleId,
+          tenantId: client.tenantId || tenantIdToUse,
+          status: 'Active',
+          clientId: client.id
+        }, req.user.id, req.ip, req.headers['user-agent']);
+      } else {
+        const hashedPassword = await bcrypt.hash(payload.password, 10);
+        await userService.updateUser(existingUser.id, { password: hashedPassword, clientId: client.id }, null, req.ip, req.headers['user-agent']);
+      }
+    }
+
     sendResponse(res, 201, 'Client created successfully', client);
   } catch (error) {
     next(error);
@@ -81,13 +106,13 @@ export const updateClient = async (req, res, next) => {
     if (payload.clientCode !== undefined) clientData.clientCode = payload.clientCode;
     if (payload.companyName !== undefined || payload.name !== undefined) clientData.companyName = payload.companyName || payload.name;
     if (payload.contactPerson !== undefined || payload.contact !== undefined) clientData.contactPerson = payload.contactPerson || payload.contact;
-    if (updatedClient.email !== undefined) clientData.email = updatedClient.email;
+    if (payload.email !== undefined) clientData.email = payload.email;
     if (payload.phone !== undefined) clientData.phone = payload.phone;
     if (payload.address !== undefined || payload.location !== undefined) clientData.address = payload.address || payload.location;
     if (payload.city !== undefined) clientData.city = payload.city;
     if (payload.country !== undefined || payload.location !== undefined) clientData.country = payload.country || payload.location;
     if (payload.status !== undefined) clientData.status = payload.status;
-    if (updatedClient.clientType !== undefined || payload.client_type !== undefined) clientData.clientType = updatedClient.clientType || payload.client_type;
+    if (payload.clientType !== undefined || payload.client_type !== undefined) clientData.clientType = payload.clientType || payload.client_type;
     if (payload.billingCycle !== undefined || payload.billing_cycle !== undefined) clientData.billingCycle = payload.billingCycle || payload.billing_cycle;
     if (payload.paymentMethod !== undefined || payload.payment_method !== undefined) clientData.paymentMethod = payload.paymentMethod || payload.payment_method;
     if (payload.plan !== undefined) clientData.plan = payload.plan;
