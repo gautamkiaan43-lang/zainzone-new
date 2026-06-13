@@ -48,7 +48,11 @@ export const createPurchaseRequest = async (data, performerId, tenantId) => {
   return newPr;
 };
 
-export const getPurchaseRequests = async (tenantId, query) => {
+export const getPurchaseRequests = async (tenantId, query, user) => {
+  // Data Isolation: If the user is STAFF (or similar non-admin), force the query to only return their requests
+  if (user && user.role?.name === 'STAFF') {
+    query.requestedBy = await getEmployeeIdByUserId(user.id);
+  }
   return await prRepository.findAllPurchaseRequests(tenantId, query);
 };
 

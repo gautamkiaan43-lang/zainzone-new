@@ -10,6 +10,13 @@ const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 
 router.post('/signup', upload.single('businessLicense'), validate(signupSchema), authController.signup);
+router.post('/staff-register', upload.fields([
+  { name: 'passport', maxCount: 1 },
+  { name: 'license', maxCount: 1 },
+  { name: 'nib_doc', maxCount: 1 },
+  { name: 'police_record', maxCount: 1 },
+  { name: 'profile_pic', maxCount: 1 }
+]), authController.staffRegister);
 router.post('/login', validate(loginSchema), authController.login);
 router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshToken);
 router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);

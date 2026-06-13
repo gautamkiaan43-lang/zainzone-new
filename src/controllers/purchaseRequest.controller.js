@@ -18,7 +18,7 @@ export const getPurchaseRequests = async (req, res, next) => {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
     const tenantIdToFilter = isSuperAdmin && !req.query.tenantId ? null : (req.query.tenantId ? Number(req.query.tenantId) : req.user.tenantId);
 
-    const result = await prService.getPurchaseRequests(tenantIdToFilter, req.query);
+    const result = await prService.getPurchaseRequests(tenantIdToFilter, req.query, req.user);
     
     // Inject created_by from embedded userId in description for frontend filtering
     if (result && Array.isArray(result.purchaseRequests)) {

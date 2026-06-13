@@ -11,6 +11,16 @@ export const signup = async (req, res, next) => {
   }
 };
 
+export const staffRegister = async (req, res, next) => {
+  try {
+    const user = await authService.registerStaff(req.body, req.files);
+    user.password = undefined;
+    sendResponse(res, 201, 'Staff Registration successful', { user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const login = async (req, res, next) => {
   try {
     const { email, password, tenantId } = req.body;

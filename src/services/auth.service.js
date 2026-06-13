@@ -351,3 +351,57 @@ export const signupUser = async (data, file) => {
 
   return user;
 };
+
+export const registerStaff = async (data, files) => {
+  const { name, email, password, phone, employment_status, birthday, bank_name, account_number, routing_number, nib_number } = data;
+
+  const roleRecord = await prisma.role.findUnique({ where: { name: 'STAFF' } });
+  if (!roleRecord) {
+    throw new AppError('Role STAFF not found in system', 400);
+  }
+
+  const existingUser = await prisma.user.findFirst({ where: { email } });
+  if (existingUser) {
+    throw new AppError('Email is already in use', 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Use a transaction to ensure both User and Employee are created together
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        phone,
+        roleId: roleRecord.id,
+        status: 'pending' // Staff approval flow
+      }
+    });
+
+    await tx.employee.create({
+      data: {
+        userId: newUser.id,
+        firstName: name.split(' ')[0] || name,
+        lastName: name.split(' ').slice(1).join(' ') || '',
+        email,
+        phone,
+        status: 'pending',
+        employmentType: employment_status || 'Full Time',
+        // Optional tracking data can be added here
+      }
+    });
+
+    return newUser;
+  });
+
+  await logAudit({
+    module: 'AUTH',
+    action: 'STAFF_REGISTER',
+    description: `Staff registered: ${email}`,
+    performedBy: user.id
+  });
+
+  return user;
+};
