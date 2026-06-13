@@ -181,13 +181,12 @@ export const submitPOD = async (id, podData, tenantId, performerId) => {
      }
      
      await prisma.$transaction(async (tx) => {
-         const PAY_RATE_PER_METER = parseFloat(process.env.PAY_RATE_PER_METER) || 0.01;
          const routeDistance = delivery.routeDistance || 0;
-         const tripEarning = routeDistance * PAY_RATE_PER_METER;
+         // Frontend saves Rate per KM as staffPayRate, and total payout as deliveryFee.
+         const tripEarning = delivery.deliveryFee || (routeDistance * (delivery.staffPayRate || 0));
 
          await deliveryRepo.updateDeliveryStatus(tx, Number(id), 'delivered', { 
-           deliveryDate: new Date(),
-           staffPayRate: tripEarning
+           deliveryDate: new Date()
          });
          await missionRepo.createPOD(tx, Number(id), tenantId || delivery.tenantId, podData);
 
@@ -241,13 +240,12 @@ export const submitPOD = async (id, podData, tenantId, performerId) => {
     // 3. Update Delivery & Calculate Earnings
     if (mission.deliveryId) {
       const delivery = await tx.delivery.findUnique({ where: { id: mission.deliveryId } });
-      const PAY_RATE_PER_METER = parseFloat(process.env.PAY_RATE_PER_METER) || 0.01;
       const routeDistance = delivery?.routeDistance || 0;
-      const tripEarning = routeDistance * PAY_RATE_PER_METER;
+      // Frontend saves Rate per KM as staffPayRate, and total payout as deliveryFee.
+      const tripEarning = delivery?.deliveryFee || (routeDistance * (delivery?.staffPayRate || 0));
 
       await deliveryRepo.updateDeliveryStatus(tx, mission.deliveryId, 'delivered', { 
-        deliveryDate: new Date(),
-        staffPayRate: tripEarning
+        deliveryDate: new Date()
       });
 
       // Accumulate Staff Earning to Payroll
