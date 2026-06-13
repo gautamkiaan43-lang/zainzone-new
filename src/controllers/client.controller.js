@@ -51,12 +51,11 @@ export const createClient = async (req, res, next) => {
           password: payload.password,
           roleId: roleId,
           tenantId: client.tenantId || tenantIdToUse,
-          status: 'Active',
-          clientId: client.id
+          status: 'Active'
         }, req.user.id, req.ip, req.headers['user-agent']);
       } else {
         const hashedPassword = await bcrypt.hash(payload.password, 10);
-        await userService.updateUser(existingUser.id, { password: hashedPassword, clientId: client.id }, null, req.ip, req.headers['user-agent']);
+        await userService.updateUser(existingUser.id, { password: hashedPassword }, null, req.ip, req.headers['user-agent']);
       }
     }
 
