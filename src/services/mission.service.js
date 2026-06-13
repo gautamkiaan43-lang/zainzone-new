@@ -181,8 +181,39 @@ export const submitPOD = async (id, podData, tenantId, performerId) => {
      }
      
      await prisma.$transaction(async (tx) => {
-         await deliveryRepo.updateDeliveryStatus(tx, Number(id), 'delivered', { deliveryDate: new Date() });
+         const PAY_RATE_PER_METER = parseFloat(process.env.PAY_RATE_PER_METER) || 0.01;
+         const routeDistance = delivery.routeDistance || 0;
+         const tripEarning = routeDistance * PAY_RATE_PER_METER;
+
+         await deliveryRepo.updateDeliveryStatus(tx, Number(id), 'delivered', { 
+           deliveryDate: new Date(),
+           staffPayRate: tripEarning
+         });
          await missionRepo.createPOD(tx, Number(id), tenantId || delivery.tenantId, podData);
+
+         // Accumulate Staff Earning to Payroll
+         if (delivery.assignedTo) {
+           const employee = await tx.employee.findUnique({ where: { id: delivery.assignedTo } });
+           if (employee && employee.userId) {
+             const payroll = await tx.payroll.findFirst({ where: { userId: employee.userId, status: 'Pending' } });
+             if (payroll) {
+               await tx.payroll.update({ 
+                 where: { id: payroll.id }, 
+                 data: { bonus: { increment: tripEarning }, netAmount: { increment: tripEarning } } 
+               });
+             } else {
+               await tx.payroll.create({ 
+                 data: { 
+                   tenantId: employee.tenantId, 
+                   userId: employee.userId, 
+                   bonus: tripEarning, 
+                   netAmount: tripEarning, 
+                   status: 'Pending' 
+                 } 
+               });
+             }
+           }
+         }
      });
      
      await logAudit({
@@ -207,9 +238,41 @@ export const submitPOD = async (id, podData, tenantId, performerId) => {
     // 2. Update Mission
     await missionRepo.updateMissionStatus(tx, mission.id, 'completed', { endDate: new Date() });
     
-    // 3. Update Delivery
+    // 3. Update Delivery & Calculate Earnings
     if (mission.deliveryId) {
-      await deliveryRepo.updateDeliveryStatus(tx, mission.deliveryId, 'delivered', { deliveryDate: new Date() });
+      const delivery = await tx.delivery.findUnique({ where: { id: mission.deliveryId } });
+      const PAY_RATE_PER_METER = parseFloat(process.env.PAY_RATE_PER_METER) || 0.01;
+      const routeDistance = delivery?.routeDistance || 0;
+      const tripEarning = routeDistance * PAY_RATE_PER_METER;
+
+      await deliveryRepo.updateDeliveryStatus(tx, mission.deliveryId, 'delivered', { 
+        deliveryDate: new Date(),
+        staffPayRate: tripEarning
+      });
+
+      // Accumulate Staff Earning to Payroll
+      if (delivery && delivery.assignedTo) {
+        const employee = await tx.employee.findUnique({ where: { id: delivery.assignedTo } });
+        if (employee && employee.userId) {
+          const payroll = await tx.payroll.findFirst({ where: { userId: employee.userId, status: 'Pending' } });
+          if (payroll) {
+            await tx.payroll.update({ 
+              where: { id: payroll.id }, 
+              data: { bonus: { increment: tripEarning }, netAmount: { increment: tripEarning } } 
+            });
+          } else {
+            await tx.payroll.create({ 
+              data: { 
+                tenantId: employee.tenantId, 
+                userId: employee.userId, 
+                bonus: tripEarning, 
+                netAmount: tripEarning, 
+                status: 'Pending' 
+              } 
+            });
+          }
+        }
+      }
     }
   });
 
