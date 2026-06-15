@@ -11,7 +11,7 @@ const orderItemSchema = z.object({
 }).passthrough();
 
 export const createOrderSchema = z.object({
-  clientId: z.number({
+  clientId: z.coerce.number({
     required_error: "Client selection is required",
     invalid_type_error: "Client ID must be a number",
   }).int().positive('Client ID must be a positive number'),
