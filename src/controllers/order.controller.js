@@ -112,9 +112,41 @@ export const createProject = async (req, res, next) => {
     const tenantIdToUse = isSuperAdmin ? (req.body.tenantId || req.user.tenantId || 1) : (req.user.tenantId || 1);
 
     // Resolve client id
-    const incomingClientId = req.body.customerId || req.body.customer_id || req.body.companyId || req.body.company_id || req.body.clientUserId || req.body.client_user_id || req.body.clientId;
-    const extractedClientId = typeof incomingClientId === 'string' && incomingClientId.includes('_') ? incomingClientId.split('_')[1] : incomingClientId;
-    const clientId = extractedClientId && !isNaN(Number(extractedClientId)) ? Number(extractedClientId) : 1;
+      const incomingClientId = req.body.customerId || req.body.customer_id || req.body.companyId || req.body.company_id || req.body.clientUserId || req.body.client_user_id || req.body.clientId;
+      const extractedClientId = typeof incomingClientId === 'string' && incomingClientId.includes('_') ? incomingClientId.split('_')[1] : incomingClientId;
+      
+      let clientId = extractedClientId && !isNaN(Number(extractedClientId)) ? Number(extractedClientId) : null;
+
+      if (!clientId) {
+        const clientName = req.body.client_name || req.body.client || req.body.name || "Default Project Client";
+        // Try to find a client with this name
+        let client = await prisma.client.findFirst({
+           where: { tenantId: tenantIdToUse, companyName: { equals: clientName } }
+        });
+        
+        if (!client) {
+           // Fallback to any client for this tenant
+           client = await prisma.client.findFirst({ where: { tenantId: tenantIdToUse } });
+        }
+
+        if (!client) {
+           // Create a default client
+           const clientCode = `CLT-${Date.now().toString().slice(-6)}`;
+           client = await prisma.client.create({
+              data: {
+                 tenantId: tenantIdToUse,
+                 companyName: clientName,
+                 clientCode,
+                 contactPerson: "Admin",
+                 email: `admin-${Date.now()}@example.com`,
+                 phone: "0000000000",
+                 status: "active"
+              }
+           });
+        }
+        
+        clientId = client.id;
+      }
 
     // Fetch employee creator ID
     const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
