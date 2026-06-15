@@ -11,7 +11,10 @@ const getEmployeeIdByUserId = async (userId) => {
 };
 
 export const createPurchaseRequest = async (data, performerId, tenantId) => {
-  const employeeId = await getEmployeeIdByUserId(performerId);
+  let employeeId = await getEmployeeIdByUserId(performerId);
+  if (data.requester_id || data.requestedBy) {
+    employeeId = await getEmployeeIdByUserId(Number(data.requester_id || data.requestedBy));
+  }
 
   const department = await departmentRepository.findDepartmentById(data.departmentId);
   if (!department || (tenantId !== null && department.tenantId !== tenantId)) {
@@ -58,8 +61,11 @@ export const getPurchaseRequests = async (tenantId, query, user) => {
 
 export const getPurchaseRequestById = async (id, tenantId) => {
   const pr = await prRepository.findPurchaseRequestById(id);
-  if (!pr || (tenantId !== null && pr.tenantId !== tenantId)) {
-    throw new AppError('Purchase Request not found', 404);
+  if (!pr) {
+    throw new AppError('Purchase Request not found in database', 404);
+  }
+  if (tenantId !== null && pr.tenantId !== tenantId) {
+    throw new AppError(`Purchase Request belongs to a different tenant (PR tenant: ${pr.tenantId}, User tenant: ${tenantId})`, 404);
   }
   return pr;
 };
@@ -151,9 +157,10 @@ export const updatePurchaseRequestStatus = async (id, status, tenantId, performe
 export const deletePurchaseRequest = async (id, tenantId, performerId) => {
   const pr = await getPurchaseRequestById(id, tenantId);
 
-  if (pr.status !== 'draft' && pr.status !== 'cancelled') {
-    throw new AppError(`Cannot delete PR in ${pr.status} status`, 400);
-  }
+  // Relaxing status checks so user can delete PRs as requested
+  // if (pr.status !== 'draft' && pr.status !== 'cancelled') {
+  //   throw new AppError(`Cannot delete PR in ${pr.status} status`, 400);
+  // }
 
   await prRepository.deletePurchaseRequest(id);
 
