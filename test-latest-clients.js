@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 async function main() {
   const clients = await prisma.client.findMany({
-    orderBy: { id: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: 5
   });
   console.log(JSON.stringify(clients, null, 2));

@@ -35,7 +35,8 @@ const MENU_NAME_MAPPING = {
   'EMPLOYEE_DOCUMENTS': 'Personnel',
   'SUPPORT': 'Support',
   'CONCIERGE': 'Concierge',
-  'TRACKING': 'Logistics'
+  'TRACKING': 'Logistics',
+  'PAYROLL': 'Payroll'
 };
 
 export const authenticate = async (req, res, next) => {
@@ -139,7 +140,7 @@ export const checkPermission = (routeIdentifier, action) => {
           'ORDERS', 'PROJECTS', 'MISSIONS', 'DELIVERIES', 'INVOICES', 
           'VENDORS', 'CLIENTS', 'USERS', 'WAREHOUSES', 'ITEMS', 'STOCK', 'GRN',
           'PURCHASE_REQUESTS', 'QUOTATIONS', 'RFQS', 'PURCHASE_ORDERS',
-          'TRACKING', 'ROUTES', 'URGENT', 'SUPPORT', 'CONCIERGE'
+          'TRACKING', 'ROUTES', 'URGENT', 'SUPPORT', 'CONCIERGE', 'PAYROLL'
         ];
         
         if (action === 'READ' && [...operationalRoutes, 'ROLES'].includes(routeIdentifier) && isStaff) {

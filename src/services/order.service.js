@@ -241,9 +241,7 @@ export const updateOrder = async (id, data, tenantId, performerId) => {
 export const deleteOrder = async (id, tenantId, performerId) => {
   const order = await getOrderById(id, tenantId);
 
-  if (order.status !== 'draft') {
-    throw new AppError(`Cannot delete order in ${order.status} status. Cancel it instead.`, 400);
-  }
+
 
   await orderRepo.deleteOrder(id);
 
