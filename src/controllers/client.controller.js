@@ -84,7 +84,7 @@ export const getClients = async (req, res, next) => {
 export const getClientById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const client = await clientService.getClientById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Client fetched successfully', client);
@@ -96,7 +96,7 @@ export const getClientById = async (req, res, next) => {
 export const updateClient = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const payload = req.body;
     
@@ -152,7 +152,7 @@ export const updateClient = async (req, res, next) => {
 export const deleteClient = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     await clientService.deleteClient(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Client deleted successfully');

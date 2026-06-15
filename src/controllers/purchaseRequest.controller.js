@@ -44,7 +44,7 @@ export const getPurchaseRequests = async (req, res, next) => {
 export const getPurchaseRequestById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const pr = await prService.getPurchaseRequestById(Number(req.params.id), tenantIdToFilter);
     let created_by = pr.requestedBy;
@@ -66,7 +66,7 @@ export const getPurchaseRequestById = async (req, res, next) => {
 export const updatePurchaseRequest = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const updatedPr = await prService.updatePurchaseRequest(Number(req.params.id), req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Purchase Request updated successfully', updatedPr);
@@ -78,7 +78,7 @@ export const updatePurchaseRequest = async (req, res, next) => {
 export const updatePurchaseRequestStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
     const { status } = req.body;
 
     const updatedPr = await prService.updatePurchaseRequestStatus(Number(req.params.id), status, tenantIdToFilter, req.user.id);
@@ -91,7 +91,7 @@ export const updatePurchaseRequestStatus = async (req, res, next) => {
 export const deletePurchaseRequest = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     await prService.deletePurchaseRequest(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Purchase Request deleted successfully');

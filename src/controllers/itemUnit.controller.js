@@ -28,7 +28,7 @@ export const getItemUnits = async (req, res, next) => {
 export const getItemUnitById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const unit = await unitService.getItemUnitById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Item Unit fetched successfully', unit);
@@ -40,7 +40,7 @@ export const getItemUnitById = async (req, res, next) => {
 export const updateItemUnit = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const updatedUnit = await unitService.updateItemUnit(Number(req.params.id), req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Item Unit updated successfully', updatedUnit);
@@ -52,7 +52,7 @@ export const updateItemUnit = async (req, res, next) => {
 export const deleteItemUnit = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     await unitService.deleteItemUnit(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Item Unit deleted successfully');

@@ -43,7 +43,7 @@ export const createUser = async (req, res, next) => {
 export const getUsers = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const result = await userService.getUsers(tenantIdToFilter, req.query);
     sendResponse(res, 200, 'Users fetched successfully', result);
@@ -55,7 +55,7 @@ export const getUsers = async (req, res, next) => {
 export const getCustomers = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     // A "customer" is effectively a user with role = BUSINESS_CLIENT
     // The frontend passes include_client_role=1 or roleName=BUSINESS_CLIENT. 
@@ -78,7 +78,7 @@ export const getCustomers = async (req, res, next) => {
 export const getUserById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const user = await userService.getUserById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'User fetched successfully', user);
@@ -90,7 +90,7 @@ export const getUserById = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const isCustomer = ['BUSINESS_CLIENT', 'INDIVIDUAL_CLIENT', 'client', 'saas_client', 'customer'].includes(req.user.role?.name);
 
@@ -136,7 +136,7 @@ export const updateUser = async (req, res, next) => {
 export const deleteUser = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     await userService.deleteUser(Number(req.params.id), tenantIdToFilter, req.ip, req.headers['user-agent']);
     sendResponse(res, 200, 'User deleted successfully');

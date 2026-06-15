@@ -28,7 +28,7 @@ export const getRFQs = async (req, res, next) => {
 export const getRFQById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     const rfq = await rfqService.getRFQById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'RFQ fetched successfully', rfq);
@@ -40,7 +40,7 @@ export const getRFQById = async (req, res, next) => {
 export const updateRFQStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
     const { status, metadata } = req.body;
 
     const updatedRFQ = await rfqService.updateRFQStatus(Number(req.params.id), status, metadata, tenantIdToFilter, req.user.id);
@@ -53,7 +53,7 @@ export const updateRFQStatus = async (req, res, next) => {
 export const deleteRFQ = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
 
     await rfqService.deleteRFQ(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'RFQ deleted successfully');

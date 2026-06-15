@@ -10,7 +10,7 @@ import prisma from '../config/db.js';
 
 export const loginUser = async (email, password, tenantId, ipAddress, userAgent) => {
   const user = await userRepository.findUserByEmailAndTenant(email, tenantId);
-  if (!user || user.status?.toUpperCase() !== 'ACTIVE') {
+  if (!user || (user.status?.toUpperCase() !== 'ACTIVE' && user.status?.toUpperCase() !== 'PENDING')) {
     throw new AppError('Invalid credentials or inactive user', 401);
   }
 
@@ -19,8 +19,8 @@ export const loginUser = async (email, password, tenantId, ipAddress, userAgent)
     throw new AppError('Invalid credentials', 401);
   }
 
-  // Attach client info if business or saas client
-  if ((user.role?.name === 'BUSINESS_CLIENT' || user.role?.name === 'SAAS_CLIENT') && user.tenantId) {
+  // Attach client info if business or saas client or staff
+  if ((user.role?.name === 'BUSINESS_CLIENT' || user.role?.name === 'SAAS_CLIENT' || user.role?.name === 'STAFF') && user.tenantId) {
     const client = await prisma.client.findFirst({ where: { tenantId: user.tenantId } });
     if (client) {
       user.clientId = client.id;

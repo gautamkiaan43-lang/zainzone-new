@@ -32,7 +32,7 @@ export const getInvoices = async (req, res, next) => {
 export const getInvoiceById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
     const clientIdToFilter = ['BUSINESS_CLIENT', 'INDIVIDUAL_CLIENT'].includes(req.user.role?.name) ? req.user.clientId : null;
 
     const invoice = await invoiceService.getInvoiceById(Number(req.params.id), tenantIdToFilter, clientIdToFilter);
@@ -45,7 +45,7 @@ export const getInvoiceById = async (req, res, next) => {
 export const updateInvoiceStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
     const { status } = req.body;
 
     const updatedInvoice = await invoiceService.updateInvoiceStatus(Number(req.params.id), status, tenantIdToFilter, req.user.id);
