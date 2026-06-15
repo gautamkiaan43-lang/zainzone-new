@@ -505,6 +505,7 @@ model RFQ {
   purchaseRequestId Int
   vendorId          Int
   status            String   @default("sent") // sent, received, closed
+  metadata          Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

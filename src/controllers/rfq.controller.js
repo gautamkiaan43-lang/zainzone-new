@@ -41,9 +41,9 @@ export const updateRFQStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
     const tenantIdToFilter = isSuperAdmin ? null : req.user.tenantId;
-    const { status } = req.body;
+    const { status, metadata } = req.body;
 
-    const updatedRFQ = await rfqService.updateRFQStatus(Number(req.params.id), status, tenantIdToFilter, req.user.id);
+    const updatedRFQ = await rfqService.updateRFQStatus(Number(req.params.id), status, metadata, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'RFQ status updated successfully', updatedRFQ);
   } catch (error) {
     next(error);

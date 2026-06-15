@@ -58,10 +58,14 @@ export const findAllRFQs = async (tenantId, query) => {
   return { rfqs, total, page: Number(page), totalPages: Math.ceil(total / limit) };
 };
 
-export const updateRFQStatus = async (id, status) => {
+export const updateRFQStatus = async (id, status, metadata) => {
+  const dataToUpdate = { status };
+  if (metadata !== undefined) {
+    dataToUpdate.metadata = metadata;
+  }
   return await prisma.rFQ.update({
     where: { id },
-    data: { status }
+    data: dataToUpdate
   });
 };
 

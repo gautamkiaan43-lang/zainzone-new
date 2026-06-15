@@ -1,5 +1,6 @@
 import * as warehouseService from '../services/warehouse.service.js';
 import { sendResponse } from '../utils/response.js';
+import prisma from '../config/db.js';
 
 export const createWarehouse = async (req, res, next) => {
   try {
@@ -14,9 +15,16 @@ export const createWarehouse = async (req, res, next) => {
       location: payload.location || null,
       capacity: payload.capacity !== undefined ? Number(payload.capacity) : 0,
       status: payload.status || 'active',
-      // Support both manager_id (frontend snake_case) and managerId (camelCase)
-      managerId: payload.managerId || payload.manager_id || null,
+      managerId: null,
     };
+
+    const providedManagerUserId = payload.managerId || payload.manager_id || null;
+    if (providedManagerUserId) {
+      const employee = await prisma.employee.findUnique({ where: { userId: Number(providedManagerUserId) } });
+      if (employee) {
+        warehouseData.managerId = employee.id;
+      }
+    }
 
     const warehouse = await warehouseService.createWarehouse(warehouseData, req.user.id, tenantIdToUse);
     sendResponse(res, 201, 'Warehouse created successfully', warehouse);
@@ -62,9 +70,16 @@ export const updateWarehouse = async (req, res, next) => {
     if (payload.location !== undefined) warehouseData.location = payload.location;
     if (payload.capacity !== undefined) warehouseData.capacity = Number(payload.capacity);
     if (payload.status !== undefined) warehouseData.status = payload.status;
-    // Support both manager_id (frontend snake_case) and managerId (camelCase)
-    const managerId = payload.managerId ?? payload.manager_id ?? undefined;
-    if (managerId !== undefined) warehouseData.managerId = managerId ? Number(managerId) : null;
+    
+    const providedManagerUserId = payload.managerId ?? payload.manager_id ?? undefined;
+    if (providedManagerUserId !== undefined) {
+      if (providedManagerUserId) {
+        const employee = await prisma.employee.findUnique({ where: { userId: Number(providedManagerUserId) } });
+        warehouseData.managerId = employee ? employee.id : null;
+      } else {
+        warehouseData.managerId = null;
+      }
+    }
 
     const updatedWarehouse = await warehouseService.updateWarehouse(Number(req.params.id), warehouseData, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Warehouse updated successfully', updatedWarehouse);

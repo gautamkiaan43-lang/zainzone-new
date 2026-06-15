@@ -51,10 +51,10 @@ export const getRFQById = async (id, tenantId) => {
   return rfq;
 };
 
-export const updateRFQStatus = async (id, status, tenantId, performerId) => {
+export const updateRFQStatus = async (id, status, metadata, tenantId, performerId) => {
   const rfq = await getRFQById(id, tenantId);
 
-  const updatedRFQ = await rfqRepository.updateRFQStatus(id, status);
+  const updatedRFQ = await rfqRepository.updateRFQStatus(id, status, metadata);
 
   await logAudit({
     module: 'RFQS',
