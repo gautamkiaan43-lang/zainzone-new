@@ -10,9 +10,6 @@ export const createRFQ = async (data, performerId, tenantId) => {
     throw new AppError('Purchase Request not found', 404);
   }
 
-  if (pr.status !== 'approved') {
-    throw new AppError('RFQ can only be created for approved Purchase Requests', 400);
-  }
 
   const vendor = await vendorRepository.findVendorById(data.vendorId);
   if (!vendor || (tenantId !== null && vendor.tenantId !== tenantId)) {
