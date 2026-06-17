@@ -28,7 +28,7 @@ export const getItemCategories = async (req, res, next) => {
 export const getItemCategoryById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const category = await categoryService.getItemCategoryById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Item Category fetched successfully', category);
@@ -40,7 +40,7 @@ export const getItemCategoryById = async (req, res, next) => {
 export const updateItemCategory = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const updatedCategory = await categoryService.updateItemCategory(Number(req.params.id), req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Item Category updated successfully', updatedCategory);
@@ -52,7 +52,7 @@ export const updateItemCategory = async (req, res, next) => {
 export const deleteItemCategory = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await categoryService.deleteItemCategory(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Item Category deleted successfully');

@@ -3,7 +3,14 @@ import prisma from './src/config/db.js';
 // Defines which menus each role can access. Empty arrays mean no explicit db mapping needed.
 const roleMappings = {
   'SUPER_ADMIN': ['*'],
-  'ADMIN': ['*'],
+  'ADMIN': [
+    'Dashboard', 'Analytics', 'Clients', 'Orders', 'Projects', 'Missions', 
+    'Deliveries', 'Inventory', 'Personnel', 'Users', 'Invoices', 'Payments', 'Payroll', 
+    'Reports', 'Support', 'Support Tickets', 'Chauffeur', 'Events', 'Guest Requests', 
+    'Luxury Items', 'Vendors', 'Purchase Requests', 'Quotes', 'Purchase Orders', 
+    'Fleet', 'Warehouses', 'Audit Protocol', 'Settings', 'Security Protocol', 
+    'Security Incidents', 'Leave & Absence'
+  ],
   'OPERATIONS': [
     'Dashboard', 'Analytics', 'Projects', 'Orders', 'Missions', 'Deliveries', 
     'Invoices', 'Payments', 'Staff Terminal', 'Leave & Absence', 'Pay & Records'

@@ -28,7 +28,7 @@ export const getPayments = async (req, res, next) => {
 export const getReceiptById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const receipt = await paymentService.getReceiptById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Receipt fetched successfully', receipt);

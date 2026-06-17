@@ -28,7 +28,7 @@ export const getAlerts = async (req, res, next) => {
 export const updateAlert = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const alert = await urgentService.updateAlert(req.params.id, req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Urgent alert updated successfully', alert);
@@ -40,7 +40,7 @@ export const updateAlert = async (req, res, next) => {
 export const deleteAlert = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await urgentService.deleteAlert(req.params.id, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Urgent alert disabled successfully', null);

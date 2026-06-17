@@ -82,6 +82,24 @@ export const authorize = (allowedRoles) => {
   };
 };
 
+export const requireSuperAdmin = async (req, res, next) => {
+  try {
+    const roleName = req.user.role?.name || 'UNKNOWN';
+    const isSuperAdmin = roleName === 'SUPER_ADMIN' || roleName === 'superadmin';
+
+    if (!isSuperAdmin) {
+      console.log(`[RBAC] Role: ${roleName} | Route: SUPER_ADMIN_ONLY | Result: DENIED`);
+      return sendResponse(res, 403, 'Forbidden: Super Admin access required');
+    }
+
+    console.log(`[RBAC] Role: ${roleName} | Route: SUPER_ADMIN_ONLY | Result: ALLOWED`);
+    next();
+  } catch (error) {
+    console.error(`[RBAC Error]`, error);
+    return sendResponse(res, 500, 'Error checking permissions');
+  }
+};
+
 export const checkPermission = (routeIdentifier, action) => {
   return async (req, res, next) => {
     try {

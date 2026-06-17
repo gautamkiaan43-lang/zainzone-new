@@ -25,7 +25,7 @@ export const getDocuments = async (req, res, next) => {
 export const getDocumentById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const document = await documentService.getDocumentById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Document fetched successfully', document);
@@ -37,7 +37,7 @@ export const getDocumentById = async (req, res, next) => {
 export const updateDocument = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const updatedDocument = await documentService.updateDocument(Number(req.params.id), req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Document updated successfully', updatedDocument);
@@ -49,7 +49,7 @@ export const updateDocument = async (req, res, next) => {
 export const verifyDocument = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const { verificationStatus } = req.body;
 
     const updatedDocument = await documentService.verifyDocument(Number(req.params.id), verificationStatus, tenantIdToFilter, req.user.id);
@@ -62,7 +62,7 @@ export const verifyDocument = async (req, res, next) => {
 export const deleteDocument = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await documentService.deleteDocument(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Document deleted successfully');

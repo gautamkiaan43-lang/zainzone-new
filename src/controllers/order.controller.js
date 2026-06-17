@@ -60,7 +60,7 @@ export const getOrders = async (req, res, next) => {
 export const getOrderById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const order = await orderService.getOrderById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'Order fetched successfully', order);
@@ -72,7 +72,7 @@ export const getOrderById = async (req, res, next) => {
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const { status } = req.body;
 
     const updatedOrder = await orderService.updateOrderStatus(Number(req.params.id), status, tenantIdToFilter, req.user.id);
@@ -85,7 +85,7 @@ export const updateOrderStatus = async (req, res, next) => {
 export const updateOrder = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const updatedOrder = await orderService.updateOrder(Number(req.params.id), req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Order updated successfully', updatedOrder);
@@ -97,7 +97,7 @@ export const updateOrder = async (req, res, next) => {
 export const deleteOrder = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await orderService.deleteOrder(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Order deleted successfully');
@@ -322,7 +322,7 @@ export const deleteProject = async (req, res, next) => {
 export const convertOrderToProject = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const orderId = Number(req.params.orderId);
 
     const project = await orderService.convertOrderToProject(orderId, req.body, tenantIdToFilter, req.user.id);

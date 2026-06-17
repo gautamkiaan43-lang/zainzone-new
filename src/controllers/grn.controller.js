@@ -28,7 +28,7 @@ export const getGRNs = async (req, res, next) => {
 export const getGRNById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const grn = await grnService.getGRNById(Number(req.params.id), tenantIdToFilter);
     sendResponse(res, 200, 'GRN fetched successfully', grn);
@@ -40,7 +40,7 @@ export const getGRNById = async (req, res, next) => {
 export const updateGRNStatus = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const { status } = req.body;
 
     const updatedGRN = await grnService.updateGRNStatus(Number(req.params.id), status, tenantIdToFilter, req.user.id);
@@ -53,7 +53,7 @@ export const updateGRNStatus = async (req, res, next) => {
 export const deleteGRN = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await grnService.deleteGRN(Number(req.params.id), tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'GRN deleted successfully');

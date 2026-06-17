@@ -37,7 +37,7 @@ export const submitSaaSRequest = async (req, res, next) => {
 export const provisionSaaSRequest = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const clientId = Number(req.params.id);
     const client = await clientService.getClientById(clientId, tenantIdToFilter);

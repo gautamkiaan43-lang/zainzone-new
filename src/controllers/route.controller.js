@@ -28,7 +28,7 @@ export const getRoutes = async (req, res, next) => {
 export const updateRoute = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const route = await routeService.updateRoute(req.params.id, req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Supply route updated successfully', route);
@@ -40,7 +40,7 @@ export const updateRoute = async (req, res, next) => {
 export const deleteRoute = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await routeService.deleteRoute(req.params.id, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Supply route disabled successfully', null);

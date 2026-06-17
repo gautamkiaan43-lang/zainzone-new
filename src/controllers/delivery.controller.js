@@ -34,7 +34,7 @@ export const getDeliveries = async (req, res, next) => {
 export const getDeliveryById = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const clientIdToFilter = ['BUSINESS_CLIENT', 'INDIVIDUAL_CLIENT'].includes(req.user.role?.name) ? req.user.clientId : null;
 
     const delivery = await deliveryService.getDeliveryById(Number(req.params.id), tenantIdToFilter, clientIdToFilter);
@@ -47,7 +47,7 @@ export const getDeliveryById = async (req, res, next) => {
 export const cancelDelivery = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const clientIdToFilter = ['BUSINESS_CLIENT', 'INDIVIDUAL_CLIENT'].includes(req.user.role?.name) ? req.user.clientId : null;
 
     await deliveryService.cancelDelivery(Number(req.params.id), tenantIdToFilter, req.user.id, clientIdToFilter);
@@ -60,7 +60,7 @@ export const cancelDelivery = async (req, res, next) => {
 export const updateDelivery = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
     const clientIdToFilter = ['BUSINESS_CLIENT', 'INDIVIDUAL_CLIENT'].includes(req.user.role?.name) ? req.user.clientId : null;
 
     const delivery = await deliveryService.updateDelivery(Number(req.params.id), req.body, tenantIdToFilter, req.user.id, clientIdToFilter);

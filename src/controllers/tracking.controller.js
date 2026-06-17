@@ -28,7 +28,7 @@ export const getTracking = async (req, res, next) => {
 export const updateTracking = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     const tracking = await trackingService.updateTracking(req.params.id, req.body, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Tracking updated successfully', tracking);
@@ -40,7 +40,7 @@ export const updateTracking = async (req, res, next) => {
 export const deleteTracking = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user.role?.name === 'SUPER_ADMIN';
-    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || -1);
+    const tenantIdToFilter = isSuperAdmin ? null : (req.user.tenantId || 1);
 
     await trackingService.deleteTracking(req.params.id, tenantIdToFilter, req.user.id);
     sendResponse(res, 200, 'Tracking deleted successfully', null);

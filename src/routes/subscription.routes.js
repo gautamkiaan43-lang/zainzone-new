@@ -2,14 +2,11 @@ import express from 'express';
 import * as subscriptionController from '../controllers/subscription.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { createSubscriptionSchema } from '../validators/subscription.validator.js';
-import { authenticate, checkPermission } from '../middlewares/auth.middleware.js';
+import { authenticate, requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 router.use(authenticate);
-
-// Enforce Super Admin access
-const requireSuperAdmin = checkPermission('SUBSCRIPTIONS', 'MANAGE');
 
 router.get('/', requireSuperAdmin, subscriptionController.getSubscriptions);
 router.post('/', requireSuperAdmin, validate(createSubscriptionSchema), subscriptionController.createSubscription);

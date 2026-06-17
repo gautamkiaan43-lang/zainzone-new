@@ -2,14 +2,11 @@ import express from 'express';
 import * as tenantController from '../controllers/tenant.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { createTenantSchema, updateTenantSchema } from '../validators/tenant.validator.js';
-import { authenticate, checkPermission } from '../middlewares/auth.middleware.js';
+import { authenticate, requireSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
 router.use(authenticate);
-
-// Enforce Super Admin access
-const requireSuperAdmin = checkPermission('TENANTS', 'MANAGE');
 
 router.get('/', requireSuperAdmin, tenantController.getTenants);
 router.get('/:id', requireSuperAdmin, tenantController.getTenantById);
